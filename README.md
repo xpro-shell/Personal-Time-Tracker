@@ -1,6 +1,6 @@
 # Personal Time Tracker
 
-A local-first productivity dashboard for tracking study sessions, breaks, sleep, habits, achievements, and daily progress. It also includes a timeline, WhatsApp import tools, a review queue, and the Vault of Lost Time.
+A Minimilistic local-first productivity dashboard for tracking study sessions, breaks, sleep, habits, achievements, and daily progress. It also includes a timeline, WhatsApp import tools, a review queue, and the Vault of Lost Time.
 
 ## Run it locally
 
