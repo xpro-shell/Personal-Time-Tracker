@@ -1,0 +1,6 @@
+{
+  "name": "Personal Time Tracker",
+  "description": "Minimalist desk time tracker with WhatsApp import, 6h study quota, 2h decrementing break bank with red alerts, and Vault of Lost Time.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

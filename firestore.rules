@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // User profile validation
+    function isValidUserProfile(data) {
+      return data.email is string && data.email.size() <= 254 &&
+             data.totalXp is number && data.totalXp >= 0 &&
+             data.level is number && data.level >= 1 &&
+             data.currentStreak is number && data.currentStreak >= 0;
+    }
+
+    // Time entry validation
+    function isValidTimeEntry(data, userId) {
+      return data.userId == userId &&
+             data.type in ['study', 'break', 'music', 'content', 'day_boundary', 'sleep', 'habit'] &&
+             data.action in ['start', 'stop', 'tick'] &&
+             data.startTime is string && data.startTime.size() <= 50 &&
+             (!('topic' in data) || (data.topic is string && data.topic.size() <= 100)) &&
+             (!('habitId' in data) || (data.habitId is string && data.habitId.size() <= 128)) &&
+             (!('durationMinutes' in data) || data.durationMinutes is number) &&
+             (!('source' in data) || data.source in ['manual', 'shortcode', 'whatsapp_import']);
+    }
+
+    // Custom habit validation
+    function isValidCustomHabit(data, userId) {
+      return data.userId == userId &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 60 &&
+             data.shortcode is string && data.shortcode.size() > 0 && data.shortcode.size() <= 30 &&
+             data.defaultDurationHours is number &&
+             data.dailyTargetMinutes is number;
+    }
+
+    // Daily summary validation
+    function isValidDailySummary(data, userId) {
+      return data.userId == userId &&
+             data.date is string && data.date.size() <= 10 &&
+             data.studyMinutes is number && data.studyMinutes >= 0 &&
+             data.breakMinutes is number && data.breakMinutes >= 0 &&
+             data.status in ['active', 'reconciled', 'vaulted'] &&
+             (!('reason' in data) || (data.reason is string && data.reason.size() <= 500));
+    }
+
+    // Vault entry validation
+    function isValidVaultEntry(data, userId) {
+      return data.userId == userId &&
+             data.date is string && data.date.size() <= 10 &&
+             data.hoursLost is number &&
+             data.type in ['unreconciled_study_debt', 'unreconciled_break'] &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 500));
+    }
+
+    // Word mapping validation
+    function isValidWordMapping(data, userId) {
+      return data.userId == userId &&
+             data.triggerWord is string && data.triggerWord.size() > 0 && data.triggerWord.size() <= 60 &&
+             data.mappedAction is string && data.mappedAction.size() > 0 && data.mappedAction.size() <= 60;
+    }
+
+    // Review item validation
+    function isValidReviewItem(data, userId) {
+      return data.userId == userId &&
+             data.rawMessage is string && data.rawMessage.size() <= 500 &&
+             data.timestamp is string && data.timestamp.size() <= 50 &&
+             data.status in ['pending', 'resolved', 'dismissed'];
+    }
+
+    // User document and nested subcollections
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isValidUserProfile(incoming());
+      allow delete: if isOwner(userId);
+
+      // Custom Habits subcollection
+      match /customHabits/{habitId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(habitId) && isValidCustomHabit(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(habitId) && isValidCustomHabit(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(habitId);
+      }
+
+      // Time Entries subcollection
+      match /timeEntries/{entryId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(entryId) && isValidTimeEntry(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(entryId) && isValidTimeEntry(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(entryId);
+      }
+
+      // Daily Summaries subcollection
+      match /dailySummaries/{dateId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(dateId) && isValidDailySummary(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(dateId) && isValidDailySummary(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(dateId);
+      }
+
+      // Vault Entries subcollection (Vault of Lost Time)
+      match /vaultEntries/{vaultId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(vaultId) && isValidVaultEntry(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(vaultId) && isValidVaultEntry(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(vaultId);
+      }
+
+      // Word Mappings subcollection
+      match /wordMappings/{mapId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(mapId) && isValidWordMapping(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(mapId) && isValidWordMapping(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(mapId);
+      }
+
+      // Review Items subcollection
+      match /reviewItems/{itemId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(itemId) && isValidReviewItem(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(itemId) && isValidReviewItem(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(itemId);
+      }
+    }
+  }
+}

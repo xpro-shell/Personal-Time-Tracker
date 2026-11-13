@@ -1,0 +1,148 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with XP, level, and streak tracking",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 254 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "totalXp": { "type": "number" },
+        "level": { "type": "number" },
+        "currentStreak": { "type": "number" },
+        "lastActiveDate": { "type": "string", "maxLength": 10 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "totalXp", "level", "currentStreak"]
+    },
+    "TimeEntry": {
+      "title": "TimeEntry",
+      "description": "Individual time log event or interval",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["study", "break", "music", "content", "day_boundary", "sleep", "habit"] },
+        "action": { "type": "string", "enum": ["start", "stop", "tick"] },
+        "topic": { "type": "string", "maxLength": 100 },
+        "habitId": { "type": "string", "maxLength": 128 },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "durationMinutes": { "type": "number" },
+        "source": { "type": "string", "enum": ["manual", "shortcode", "whatsapp_import"] },
+        "sourceHash": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "action", "startTime"]
+    },
+    "DailySummary": {
+      "title": "DailySummary",
+      "description": "Daily reconciliation of 6h study quota, 2h break bank, deficit and surplus",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 10 },
+        "studyMinutes": { "type": "number" },
+        "breakMinutes": { "type": "number" },
+        "studyTargetMinutes": { "type": "number" },
+        "breakQuotaMinutes": { "type": "number" },
+        "studyDeficitMinutes": { "type": "number" },
+        "breakSurplusMinutes": { "type": "number" },
+        "reason": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["active", "reconciled", "vaulted"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "studyMinutes", "breakMinutes", "status"]
+    },
+    "VaultEntry": {
+      "title": "VaultEntry",
+      "description": "Written-off study debt and unapproved carry-forwards stored in the Vault of Lost Time",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 10 },
+        "hoursLost": { "type": "number" },
+        "type": { "type": "string", "enum": ["unreconciled_study_debt", "unreconciled_break"] },
+        "note": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "hoursLost", "type"]
+    },
+    "WordMapping": {
+      "title": "WordMapping",
+      "description": "Custom user-editable word mapping for WhatsApp log parsing",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "triggerWord": { "type": "string", "maxLength": 60 },
+        "mappedAction": { "type": "string", "maxLength": 60 },
+        "category": { "type": "string", "maxLength": 30 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "triggerWord", "mappedAction"]
+    },
+    "ReviewItem": {
+      "title": "ReviewItem",
+      "description": "WhatsApp messages that are numbers, amounts, or unclear entries flagged for review",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "rawMessage": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "reason": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "rawMessage", "timestamp", "status"]
+    },
+    "CustomHabit": {
+      "title": "CustomHabit",
+      "description": "Custom editable user habit or practice tracker (e.g. Riyaz, Gym, Reading, Meditation)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 60 },
+        "shortcode": { "type": "string", "maxLength": 30 },
+        "defaultDurationHours": { "type": "number" },
+        "dailyTargetMinutes": { "type": "number" },
+        "colorTheme": { "type": "string", "enum": ["purple", "amber", "emerald", "blue", "rose", "bronze", "indigo"] },
+        "iconType": { "type": "string", "enum": ["music", "dumbbell", "book", "flame", "sparkles", "code", "heart", "moon"] },
+        "entryType": { "type": "string", "enum": ["study", "break", "music", "content", "day_boundary", "sleep", "habit"] },
+        "isDefault": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "shortcode", "defaultDurationHours", "dailyTargetMinutes"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile with XP and streak data"
+    },
+    "/users/{userId}/customHabits/{habitId}": {
+      "schema": "CustomHabit",
+      "description": "Custom habits and practice routines configured by the user"
+    },
+    "/users/{userId}/timeEntries/{entryId}": {
+      "schema": "TimeEntry",
+      "description": "Individual time entries logged by the user"
+    },
+    "/users/{userId}/dailySummaries/{dateId}": {
+      "schema": "DailySummary",
+      "description": "Daily study and break quota summaries"
+    },
+    "/users/{userId}/vaultEntries/{vaultId}": {
+      "schema": "VaultEntry",
+      "description": "Entries archived in the Vault of Lost Time"
+    },
+    "/users/{userId}/wordMappings/{mapId}": {
+      "schema": "WordMapping",
+      "description": "User custom dictionary for WhatsApp chat parsing"
+    },
+    "/users/{userId}/reviewItems/{itemId}": {
+      "schema": "ReviewItem",
+      "description": "Unresolved notes and unclear entries from WhatsApp"
+    }
+  }
+}
