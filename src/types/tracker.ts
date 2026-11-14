@@ -127,6 +127,8 @@ export interface AchievementItem {
 
 export interface TickerSettings {
   intervalSeconds: number;
+  fadeAfterSeconds?: number;
+  scrollSpeed?: 'slow' | 'normal' | 'fast';
   enabled: boolean;
 }
 

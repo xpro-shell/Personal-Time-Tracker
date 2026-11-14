@@ -23,7 +23,7 @@ import { TopBar } from './components/TopBar';
 import { VaultOfLostTime } from './components/VaultOfLostTime';
 import { WhatsAppImporter } from './components/WhatsAppImporter';
 import { useLocalProfile } from './context/LocalProfileContext';
-import { playEarnedChime } from './lib/audioAlert';
+import { playDeskClick, playEarnedChime } from './lib/audioAlert';
 import { INITIAL_WORD_RULES, WordRule } from './lib/defaultWordList';
 import { readLocalAsync, readLocalSync, STORAGE_KEYS, writeLocalData } from './lib/localDb';
 import {
@@ -59,6 +59,8 @@ const getDefaultAppState = (): PersistedAppState => ({
 
 const DEFAULT_TICKER_SETTINGS: TickerSettings = {
   intervalSeconds: 120, // Default every 2 minutes
+  fadeAfterSeconds: 20, // Default smooth fade-out after 20 seconds
+  scrollSpeed: 'normal',
   enabled: true,
 };
 
@@ -125,9 +127,11 @@ export default function App() {
   const [achievements, setAchievements] = useState<AchievementItem[]>(() =>
     readLocalSync<AchievementItem[]>(STORAGE_KEYS.ACHIEVEMENTS, [])
   );
-  const [tickerSettings, setTickerSettings] = useState<TickerSettings>(() =>
-    readLocalSync<TickerSettings>(STORAGE_KEYS.TICKER_SETTINGS, DEFAULT_TICKER_SETTINGS)
-  );
+  const [tickerSettings, setTickerSettings] = useState<TickerSettings>(() => ({
+    ...DEFAULT_TICKER_SETTINGS,
+    ...readLocalSync<TickerSettings>(STORAGE_KEYS.TICKER_SETTINGS, DEFAULT_TICKER_SETTINGS),
+  }));
+  const [tickerFlashTrigger, setTickerFlashTrigger] = useState<number>(0);
 
   // Tutorial preferences (show on startup unless user clicked Do Not Show Again)
   const initialTutorialPrefs = useMemo(
@@ -152,6 +156,29 @@ export default function App() {
     type: 'login',
     timestamp: new Date().toISOString(),
   });
+
+  // Interactive Studio Atmosphere Theme ('emerald' | 'gold' | 'violet' | 'cyan')
+  const [studioTheme, setStudioTheme] = useState<'emerald' | 'gold' | 'violet' | 'cyan'>(() => {
+    try {
+      const saved = localStorage.getItem('ptt_studio_theme_v1');
+      if (saved === 'emerald' || saved === 'gold' || saved === 'violet' || saved === 'cyan') {
+        return saved;
+      }
+    } catch {
+      // ignore storage failure
+    }
+    return 'emerald';
+  });
+
+  const handleSelectStudioTheme = (theme: 'emerald' | 'gold' | 'violet' | 'cyan') => {
+    playDeskClick();
+    setStudioTheme(theme);
+    try {
+      localStorage.setItem('ptt_studio_theme_v1', theme);
+    } catch {
+      // ignore storage failure
+    }
+  };
 
   const hasHydratedIdb = useRef(false);
 
@@ -190,7 +217,7 @@ export default function App() {
         if (loadedRules.length > 0) setWordRules(loadedRules);
         if (loadedHabits.length > 0) setHabits(loadedHabits);
         if (loadedAchievements.length > 0) setAchievements(loadedAchievements);
-        if (loadedTicker) setTickerSettings(loadedTicker);
+        if (loadedTicker) setTickerSettings({ ...DEFAULT_TICKER_SETTINGS, ...loadedTicker });
         if (loadedTutorialPrefs) {
           setTutorialPrefs(loadedTutorialPrefs);
           if (loadedTutorialPrefs.doNotShowAgain) {
@@ -828,6 +855,9 @@ export default function App() {
       ...item,
     };
     setAchievements((prev) => [created, ...prev]);
+    if (created.showInTicker) {
+      setTickerFlashTrigger((n) => n + 1);
+    }
     addXp(25);
   };
 
@@ -956,7 +986,32 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0c0f] text-zinc-100 flex flex-col font-sans selection:bg-amber-950 selection:text-amber-200">
+    <div
+      data-studio-theme={studioTheme}
+      className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans selection:bg-emerald-500/25 selection:text-emerald-100 relative overflow-x-clip"
+    >
+      {/* Fixed Ambient Studio Lighting Backdrop */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+        <div
+          className="animate-studio-float absolute -top-40 left-[-10%] w-[520px] h-[520px] rounded-full blur-[120px] transition-colors duration-700"
+          style={{ background: 'radial-gradient(circle, var(--studio-orb-1), transparent 70%)' }}
+        />
+        <div
+          className="animate-studio-float absolute top-[35%] right-[-12%] w-[540px] h-[540px] rounded-full blur-[130px] transition-colors duration-700"
+          style={{
+            background: 'radial-gradient(circle, var(--studio-orb-2), transparent 70%)',
+            animationDelay: '-5s',
+          }}
+        />
+        <div
+          className="animate-studio-float absolute -bottom-36 left-[28%] w-[500px] h-[500px] rounded-full blur-[130px] transition-colors duration-700"
+          style={{
+            background: 'radial-gradient(circle, var(--studio-orb-3), transparent 70%)',
+            animationDelay: '-9s',
+          }}
+        />
+      </div>
+
       {/* Minimalist Cinematic Intro Animation (Bundled with Robot Teacher Tutorial) */}
       <IntroAnimation
         forceShow={forceShowIntro}
@@ -978,15 +1033,16 @@ export default function App() {
         onReplayIntro={handleReplayIntroBundle}
       />
 
-      {/* News-Channel Thin Line Achievement Ticker at the Top */}
+      {/* News-Channel Moving Achievement Ticker at the Top */}
       <AchievementNewsTicker
         achievements={achievements}
         tickerSettings={tickerSettings}
+        flashTrigger={tickerFlashTrigger}
         onOpenAchievementsTab={() => setCurrentTab('achievements')}
       />
 
       {/* Main Content Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Date Navigator */}
         {(currentTab === 'desk' || currentTab === 'timeline') && (
           <DateNavigator
@@ -1009,48 +1065,84 @@ export default function App() {
         {/* Tab 1: Desk Cockpit - Cleanly Separated Step-by-Step Sections */}
         {currentTab === 'desk' && (
           <div className="space-y-10 sm:space-y-12">
-            {/* Quick Step Navigation Strip (Phone & Desktop) */}
-            <div className="sticky top-[56px] lg:top-[58px] z-30 py-2 px-4 bg-[#101215]/95 backdrop-blur-md border border-emerald-500/20 rounded-xl flex items-center justify-between gap-3 overflow-x-auto text-xs font-mono scrollbar-none shadow-xl shadow-black/50">
-              <span className="text-emerald-400 font-bold shrink-0 uppercase tracking-wider text-[10px]">
-                Desk Flow:
-              </span>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <a href="#section-command" className="px-2 py-1 rounded-md hover:bg-amber-500/10 text-zinc-300 hover:text-amber-300 transition-colors whitespace-nowrap">
-                  <span className="text-amber-400 font-bold">01.</span> Command
-                </a>
-                <span className="text-zinc-700">·</span>
-                <a href="#section-focus" className="px-2 py-1 rounded-md hover:bg-emerald-500/10 text-zinc-300 hover:text-emerald-300 transition-colors whitespace-nowrap">
-                  <span className="text-emerald-400 font-bold">02.</span> Focus (6h)
-                </a>
-                <span className="text-zinc-700">·</span>
-                <a href="#section-break" className="px-2 py-1 rounded-md hover:bg-amber-500/10 text-zinc-300 hover:text-amber-200 transition-colors whitespace-nowrap">
-                  <span className="text-amber-400 font-bold">03.</span> Break Bank
-                </a>
-                <span className="text-zinc-700">·</span>
-                <a href="#section-sleep" className="px-2 py-1 rounded-md hover:bg-indigo-500/10 text-zinc-300 hover:text-indigo-300 transition-colors whitespace-nowrap">
-                  <span className="text-indigo-400 font-bold">04.</span> Sleep
-                </a>
-                <span className="text-zinc-700">·</span>
-                <a href="#section-habits" className="px-2 py-1 rounded-md hover:bg-purple-500/10 text-purple-300 hover:text-purple-200 transition-colors whitespace-nowrap font-semibold">
-                  <span className="text-purple-400 font-bold">05.</span> Habits ({habits.length})
-                </a>
-                <span className="text-zinc-700">·</span>
-                <a href="#section-timeline" className="px-2 py-1 rounded-md hover:bg-teal-500/10 text-zinc-300 hover:text-teal-300 transition-colors whitespace-nowrap">
-                  <span className="text-teal-400 font-bold">06.</span> Visuals
-                </a>
+            {/* Quick Step Navigation Strip + Interactive Studio Vibe Switcher */}
+            <div className="sticky top-[56px] lg:top-[58px] z-30 py-2.5 px-4 bg-[#101014]/90 backdrop-blur-md border border-zinc-800/80 rounded-xl flex items-center justify-between gap-3 overflow-x-auto text-xs scrollbar-none shadow-xl shadow-black/50">
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="label-scandi text-emerald-400">
+                  Desk Flow
+                </span>
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <a href="#section-command" className="px-2.5 py-1 rounded-md hover:bg-emerald-500/10 text-zinc-300 hover:text-emerald-200 transition-colors whitespace-nowrap">
+                    <span className="font-mono text-emerald-400 font-bold mr-1">01.</span>
+                    <span className="font-medium">Command</span>
+                  </a>
+                  <span className="text-zinc-800">·</span>
+                  <a href="#section-focus" className="px-2.5 py-1 rounded-md hover:bg-emerald-500/10 text-zinc-300 hover:text-emerald-200 transition-colors whitespace-nowrap">
+                    <span className="font-mono text-emerald-400 font-bold mr-1">02.</span>
+                    <span className="font-medium">Focus (6h)</span>
+                  </a>
+                  <span className="text-zinc-800">·</span>
+                  <a href="#section-break" className="px-2.5 py-1 rounded-md hover:bg-amber-500/10 text-zinc-300 hover:text-amber-200 transition-colors whitespace-nowrap">
+                    <span className="font-mono text-amber-400 font-bold mr-1">03.</span>
+                    <span className="font-medium">Break Bank</span>
+                  </a>
+                  <span className="text-zinc-800">·</span>
+                  <a href="#section-sleep" className="px-2.5 py-1 rounded-md hover:bg-indigo-500/10 text-zinc-300 hover:text-indigo-200 transition-colors whitespace-nowrap">
+                    <span className="font-mono text-indigo-400 font-bold mr-1">04.</span>
+                    <span className="font-medium">Sleep</span>
+                  </a>
+                  <span className="text-zinc-800">·</span>
+                  <a href="#section-habits" className="px-2.5 py-1 rounded-md hover:bg-purple-500/10 text-zinc-200 hover:text-purple-200 transition-colors whitespace-nowrap">
+                    <span className="font-mono text-purple-400 font-bold mr-1">05.</span>
+                    <span className="font-medium">Habits ({habits.length})</span>
+                  </a>
+                  <span className="text-zinc-800">·</span>
+                  <a href="#section-timeline" className="px-2.5 py-1 rounded-md hover:bg-cyan-500/10 text-zinc-300 hover:text-cyan-200 transition-colors whitespace-nowrap">
+                    <span className="font-mono text-cyan-400 font-bold mr-1">06.</span>
+                    <span className="font-medium">Visuals</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Interactive Studio Mood Selector */}
+              <div className="flex items-center gap-2 pl-3 border-l border-zinc-800 shrink-0">
+                <span className="label-scandi text-zinc-500 hidden xl:inline">Studio Light</span>
+                <div className="flex items-center gap-1.5" role="group" aria-label="Studio Atmosphere Color">
+                  {(
+                    [
+                      { id: 'emerald', label: 'Emerald Focus', dotClass: 'bg-emerald-400 shadow-[0_0_10px_#34d399]' },
+                      { id: 'gold', label: 'Obsidian Gold', dotClass: 'bg-amber-400 shadow-[0_0_10px_#fbbf24]' },
+                      { id: 'violet', label: 'Royal Violet', dotClass: 'bg-purple-400 shadow-[0_0_10px_#c084fc]' },
+                      { id: 'cyan', label: 'Arctic Cyan', dotClass: 'bg-cyan-400 shadow-[0_0_10px_#22d3ee]' },
+                    ] as const
+                  ).map((vibe) => (
+                    <button
+                      key={vibe.id}
+                      type="button"
+                      onClick={() => handleSelectStudioTheme(vibe.id)}
+                      title={`Switch Studio Atmosphere: ${vibe.label}`}
+                      aria-label={`Switch Studio Atmosphere: ${vibe.label}`}
+                      className={`interactive-press w-4 h-4 rounded-full transition-all cursor-pointer ${vibe.dotClass} ${
+                        studioTheme === vibe.id
+                          ? 'ring-2 ring-white ring-offset-2 ring-offset-[#101014] scale-110 opacity-100'
+                          : 'opacity-50 hover:opacity-90 hover:scale-105'
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Step 01: Desk Command Center & Active Elapsed Login Timer */}
             <section id="section-command" className="scroll-mt-28 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-mono font-bold text-amber-400">01.</span>
-                  <h2 className="font-display text-base sm:text-lg font-bold tracking-tight text-zinc-100">
+              <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20">
+                <div className="flex items-baseline gap-2.5">
+                  <span className="text-xs font-mono font-bold text-emerald-400">01.</span>
+                  <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-white">
                     Desk Command & Session Controls
                   </h2>
                 </div>
-                <span className="text-[11px] font-mono text-amber-400/80">Elapsed Login Monitor</span>
+                <span className="label-scandi text-emerald-400/80 hidden sm:inline">Elapsed Login Monitor</span>
               </div>
               <DeskQuickLogger
                 activeSession={activeSession}
@@ -1067,9 +1159,9 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Step 02: 6-Hour Study Quota Card + S on + Quick Shortcode Bar */}
               <section id="section-focus" className="scroll-mt-28 space-y-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-baseline gap-2 pb-1.5 border-b border-emerald-500/25">
                   <span className="text-xs font-mono font-bold text-emerald-400">02.</span>
-                  <h2 className="font-display text-sm sm:text-base font-bold tracking-tight text-emerald-100">
+                  <h2 className="font-display text-lg font-semibold tracking-tight text-emerald-50">
                     Focus Quota (6h Target)
                   </h2>
                 </div>
@@ -1088,9 +1180,9 @@ export default function App() {
 
               {/* Step 03: 2-Hour Decrementing Break Bank Card + Break (bon) Button */}
               <section id="section-break" className="scroll-mt-28 space-y-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-baseline gap-2 pb-1.5 border-b border-amber-500/25">
                   <span className="text-xs font-mono font-bold text-amber-400">03.</span>
-                  <h2 className="font-display text-sm sm:text-base font-bold tracking-tight text-amber-100">
+                  <h2 className="font-display text-lg font-semibold tracking-tight text-amber-50">
                     Break Bank & Emergency Alerts
                   </h2>
                 </div>
@@ -1106,9 +1198,9 @@ export default function App() {
 
               {/* Step 04: 8-Hour Restorative Sleep Tracker Card */}
               <section id="section-sleep" className="scroll-mt-28 space-y-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-baseline gap-2 pb-1.5 border-b border-indigo-500/25">
                   <span className="text-xs font-mono font-bold text-indigo-400">04.</span>
-                  <h2 className="font-display text-sm sm:text-base font-bold tracking-tight text-indigo-100">
+                  <h2 className="font-display text-lg font-semibold tracking-tight text-indigo-50">
                     Restorative Sleep & Recovery
                   </h2>
                 </div>
@@ -1128,17 +1220,17 @@ export default function App() {
 
             {/* Step 05: Practice & Habits Hub (Riyaz, Gym, Reading, Custom Routines) */}
             <section id="section-habits" className="scroll-mt-28 space-y-3 pt-2">
-              <div className="flex items-center justify-between pb-2.5 border-b border-purple-500/20">
-                <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-between pb-2.5 border-b border-purple-500/25">
+                <div className="flex items-baseline gap-2.5">
                   <span className="text-xs font-mono font-bold text-purple-400">05.</span>
-                  <h2 className="font-display text-base sm:text-lg font-bold tracking-tight text-zinc-100">
+                  <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-purple-50">
                     Practice & Habits Hub
                   </h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsHabitsManagerOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer shadow-sm"
+                  className="interactive-press flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-950 bg-gradient-to-r from-purple-400 to-fuchsia-300 hover:brightness-110 rounded-lg transition-all cursor-pointer shadow-[0_0_18px_-4px_rgba(192,132,252,0.55)]"
                 >
                   <Sliders className="w-3.5 h-3.5" />
                   <span>Customize / Add Habits</span>
@@ -1161,14 +1253,14 @@ export default function App() {
 
             {/* Step 06: Timeline, Heatmap & Multi-Visualization Analytics */}
             <section id="section-timeline" className="scroll-mt-28 space-y-3 pt-2">
-              <div className="flex items-center justify-between pb-2.5 border-b border-teal-500/20">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-mono font-bold text-teal-400">06.</span>
-                  <h2 className="font-display text-base sm:text-lg font-bold tracking-tight text-zinc-100">
+              <div className="flex items-center justify-between pb-2.5 border-b border-cyan-500/25">
+                <div className="flex items-baseline gap-2.5">
+                  <span className="text-xs font-mono font-bold text-cyan-400">06.</span>
+                  <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-cyan-50">
                     24-Hour Timeline & Visual Analytics
                   </h2>
                 </div>
-                <span className="text-xs font-mono text-teal-400/80 hidden sm:inline">
+                <span className="label-scandi text-cyan-400/80 hidden sm:inline">
                   Heatmap · Candlestick · Donut · Stacked
                 </span>
               </div>
@@ -1182,9 +1274,9 @@ export default function App() {
 
             {/* Step 07: Study Science & Insights */}
             <section id="section-insights" className="scroll-mt-28 space-y-3 pt-2">
-              <div className="flex items-center gap-2.5 pb-2.5 border-b border-emerald-500/20">
+              <div className="flex items-baseline gap-2.5 pb-2.5 border-b border-emerald-500/25">
                 <span className="text-xs font-mono font-bold text-emerald-400">07.</span>
-                <h2 className="font-display text-base sm:text-lg font-bold tracking-tight text-zinc-100">
+                <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-emerald-50">
                   Accountability & Focus Principles
                 </h2>
               </div>
@@ -1213,6 +1305,7 @@ export default function App() {
               onDeleteAchievement={handleDeleteAchievement}
               tickerSettings={tickerSettings}
               onUpdateTickerSettings={setTickerSettings}
+              onFlashTickerNow={() => setTickerFlashTrigger((n) => n + 1)}
             />
           </div>
         )}

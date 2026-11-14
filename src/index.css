@@ -1,15 +1,63 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root,
+[data-studio-theme="emerald"] {
+  --studio-orb-1: rgba(16, 185, 129, 0.16);
+  --studio-orb-2: rgba(20, 184, 166, 0.11);
+  --studio-orb-3: rgba(99, 102, 241, 0.08);
+  --studio-accent: #34d399;
+  --studio-accent-ring: rgba(52, 211, 153, 0.45);
+}
+
+[data-studio-theme="gold"] {
+  --studio-orb-1: rgba(245, 158, 11, 0.16);
+  --studio-orb-2: rgba(234, 88, 12, 0.1);
+  --studio-orb-3: rgba(16, 185, 129, 0.08);
+  --studio-accent: #fbbf24;
+  --studio-accent-ring: rgba(251, 191, 36, 0.45);
+}
+
+[data-studio-theme="violet"] {
+  --studio-orb-1: rgba(168, 85, 247, 0.18);
+  --studio-orb-2: rgba(99, 102, 241, 0.12);
+  --studio-orb-3: rgba(236, 72, 153, 0.08);
+  --studio-accent: #c084fc;
+  --studio-accent-ring: rgba(192, 132, 252, 0.45);
+}
+
+[data-studio-theme="cyan"] {
+  --studio-orb-1: rgba(34, 211, 238, 0.16);
+  --studio-orb-2: rgba(59, 130, 246, 0.12);
+  --studio-orb-3: rgba(16, 185, 129, 0.09);
+  --studio-accent: #22d3ee;
+  --studio-accent-ring: rgba(34, 211, 238, 0.45);
+}
+
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
+/* Editorial Luxury Hero & Section Headings */
 .font-display {
-  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Playfair Display', Georgia, Cambria, "Times New Roman", serif;
   letter-spacing: -0.02em;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+/* Scandinavian Minimal Labels */
+.label-scandi {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  line-height: 1.2;
 }
 
 .font-mono, [class*="font-mono"], .tabular-nums {
@@ -19,6 +67,82 @@
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Luminous Interactive Card Depth & Top Specular Rim */
+.studio-card {
+  position: relative;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 220ms ease,
+              box-shadow 260ms ease;
+}
+
+.studio-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 12% auto 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  pointer-events: none;
+  opacity: 0.65;
+  transition: opacity 220ms ease;
+}
+
+.studio-card:hover {
+  transform: translateY(-2px);
+}
+
+.studio-card:hover::before {
+  opacity: 1;
+}
+
+.interactive-press {
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1), filter 180ms ease;
+}
+
+.interactive-press:active {
+  transform: scale(0.975);
+}
+
+/* Shimmering Progress Bar Sweep */
+@keyframes progressShimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+.progress-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  animation: progressShimmer 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Gentle Ambient Studio Breathing */
+@keyframes studioFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate3d(12px, -16px, 0) scale(1.06);
+    opacity: 1;
+  }
+}
+
+.animate-studio-float {
+  animation: studioFloat 14s ease-in-out infinite;
 }
 
 /* Dancing Robot Teacher Keyframes (compositor-only transform & opacity) */
@@ -88,22 +212,69 @@ html {
   animation: botNoteFloat 2s ease-in-out infinite;
 }
 
+/* Live News Channel Continuous Marquee Crawl */
+@keyframes newsMarquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.news-ticker-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 3%, #000 97%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 3%, #000 97%, transparent 100%);
+}
+
+.news-ticker-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: newsMarquee var(--ticker-duration, 24s) linear infinite;
+}
+
+.news-ticker-viewport:hover .news-ticker-track {
+  animation-play-state: paused;
+}
+
+@keyframes tickerCountdown {
+  0% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+.animate-ticker-countdown {
+  transform-origin: left center;
+  animation: tickerCountdown var(--fade-duration, 20s) linear forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-bot-dance,
   .animate-bot-arm-wave,
   .animate-bot-arm-groove,
   .animate-bot-note,
-  .tutorial-spotlight-active {
+  .tutorial-spotlight-active,
+  .progress-shimmer::after,
+  .animate-studio-float,
+  .news-ticker-track,
+  .animate-ticker-countdown {
     animation: none;
+  }
+  .studio-card:hover {
+    transform: none;
   }
 }
 
 @keyframes spotlightPulse {
   0%, 100% {
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.9), 0 0 28px rgba(16, 185, 129, 0.25);
+    box-shadow: 0 0 0 1.5px rgba(16, 185, 129, 0.75), 0 0 26px rgba(16, 185, 129, 0.2);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.95), 0 0 40px rgba(16, 185, 129, 0.38);
+    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.95), 0 0 38px rgba(16, 185, 129, 0.35);
   }
 }
 
@@ -111,6 +282,6 @@ html {
   position: relative;
   border-radius: 1rem;
   padding: 6px;
-  background-color: rgba(16, 185, 129, 0.04);
+  background-color: rgba(16, 185, 129, 0.03);
   animation: spotlightPulse 1.8s ease-in-out infinite;
 }

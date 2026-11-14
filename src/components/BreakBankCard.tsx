@@ -62,20 +62,26 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
 
   return (
     <div
-      className={`relative p-5 rounded-2xl border transition-all duration-300 flex flex-col justify-between gap-4 overflow-hidden ${
+      className={`studio-card relative p-5 rounded-2xl border flex flex-col justify-between gap-4 overflow-hidden ${
         isExhausted
-          ? 'bg-gradient-to-br from-red-950/50 to-[#181012] border-red-600/70 shadow-lg shadow-red-950/40'
+          ? 'bg-gradient-to-br from-red-950/60 via-[#1a1012] to-[#140d0f] border-red-500/75 shadow-[0_0_36px_-10px_rgba(239,68,68,0.5)]'
           : isBreakActive
-          ? 'bg-gradient-to-br from-amber-950/30 via-[#181410] to-[#131214] border-amber-500/60'
-          : 'bg-gradient-to-br from-[#161310] via-[#141314] to-[#121215] border-amber-500/25 hover:border-amber-500/45'
+          ? 'bg-gradient-to-br from-[#241a0b] via-[#151310] to-[#121215] border-amber-400/70 shadow-[0_0_34px_-10px_rgba(245,158,11,0.45)]'
+          : 'bg-gradient-to-br from-[#1b150c] via-[#121215] to-[#141210] border-amber-500/20 hover:border-amber-400/50'
       }`}
     >
-      <div>
-        {/* Red Alert Header when exhausted */}
+      {/* Subtle Ambient Corner Radiance */}
+      <div
+        className="pointer-events-none absolute -top-16 -right-16 w-40 h-40 rounded-full blur-3xl opacity-30"
+        style={{ background: isExhausted ? 'radial-gradient(circle, #ef4444, transparent 70%)' : 'radial-gradient(circle, #f59e0b, transparent 70%)' }}
+      />
+
+      <div className="relative">
+        {/* Red Alert Header when exhausted (preserved semantic emergency alert) */}
         {isExhausted && (
           <div className="mb-4 p-3 bg-red-900/60 border border-red-500/80 rounded-lg flex items-start gap-3 text-red-100 animate-pulse">
             <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-            <div className="text-xs">
+            <div className="text-xs font-sans">
               <span className="font-bold tracking-wide uppercase">Break is Over</span>
               <p className="mt-0.5 text-red-200">
                 Your 2-hour daily break quota is completely exhausted. Now only focus hours left!
@@ -86,11 +92,11 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
 
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className={`p-1.5 rounded-lg border ${isExhausted ? 'bg-red-950/70 border-red-500/40' : 'bg-amber-500/15 border-amber-500/30'}`}>
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-lg border ${isExhausted ? 'bg-red-950/70 border-red-500/40' : 'bg-amber-500/10 border-amber-500/30'}`}>
               <Coffee className={`w-4 h-4 ${isExhausted ? 'text-red-400' : 'text-amber-400'}`} />
             </div>
-            <h3 className="font-display text-sm font-bold tracking-tight text-amber-100">
+            <h3 className="font-display text-base font-semibold tracking-tight text-white">
               2-Hour Break Bank
             </h3>
           </div>
@@ -102,12 +108,12 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
         {/* Main Countdown Meter */}
         <div className="mt-4 flex items-baseline justify-between">
           <div>
-            <span className="text-xs text-zinc-400 block mb-1">
+            <span className={`label-scandi block mb-1 ${isExhausted ? 'text-red-300' : 'text-amber-300/80'}`}>
               {isExhausted ? 'Break Overtime' : 'Remaining Break Quota'}
             </span>
             <span
               className={`text-3xl font-mono font-bold tracking-tight tabular-nums ${
-                isExhausted ? 'text-red-400' : isBreakActive ? 'text-amber-400' : 'text-zinc-100'
+                isExhausted ? 'text-red-400' : isBreakActive ? 'text-amber-300 drop-shadow-[0_0_12px_rgba(251,191,36,0.35)]' : 'text-white'
               }`}
             >
               {isExhausted ? `+${formatTime(remainingSeconds)}` : formatTime(remainingSeconds)}
@@ -118,20 +124,22 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
             <button
               type="button"
               onClick={handleCelebrate}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-emerald-300 bg-emerald-950/60 border border-emerald-800/60 rounded-md hover:bg-emerald-900/60 transition-colors cursor-pointer"
+              className="interactive-press flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-200 bg-amber-500/10 border border-amber-500/30 hover:border-amber-400 hover:bg-amber-500/20 rounded-md transition-all cursor-pointer"
               title="Celebrate unused break discipline"
             >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span>Earned Reserve</span>
             </button>
           )}
         </div>
 
-        {/* Progress Bar */}
-        <div className="mt-4 w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+        {/* Luminous Progress Bar */}
+        <div className="mt-4 w-full h-2 bg-zinc-950 border border-amber-500/20 rounded-full overflow-hidden">
           <div
-            className={`h-full transition-all duration-300 ${
-              isExhausted ? 'bg-red-500' : isBreakActive ? 'bg-amber-400' : 'bg-zinc-300'
+            className={`h-full rounded-full transition-all duration-500 ${
+              isExhausted
+                ? 'bg-gradient-to-r from-red-600 to-rose-400'
+                : 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 progress-shimmer shadow-[0_0_12px_rgba(245,158,11,0.5)]'
             }`}
             style={{ width: `${percentageUsed}%` }}
           />
@@ -139,13 +147,13 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
       </div>
 
       {/* Bottom Controls: Carry-Forward Reserve + Dedicated Break (bon) Button */}
-      <div className="pt-3.5 border-t border-zinc-800/70 space-y-3">
+      <div className="pt-3.5 border-t border-zinc-800/80 space-y-3 relative">
         <div className="flex items-center justify-between text-xs font-mono tabular-nums text-zinc-400">
           <div className="flex items-center gap-1.5">
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+            <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
             <span>Carry-Forward Reserve:</span>
           </div>
-          <span className="text-emerald-400 font-semibold">
+          <span className="text-amber-300 font-semibold">
             +{Math.round((bankedCarryForwardMinutes / 60) * 10) / 10}h
           </span>
         </div>
@@ -157,7 +165,7 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
               playDeskClick();
               onStopBreak();
             }}
-            className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-500 rounded-lg transition-colors shadow-sm cursor-pointer"
+            className="interactive-press w-full flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 rounded-lg transition-all shadow-[0_0_18px_-4px_rgba(220,38,38,0.6)] cursor-pointer"
           >
             <Square className="w-3.5 h-3.5 fill-current" />
             <span>End Break (boff)</span>
@@ -169,7 +177,7 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
               playDeskClick();
               onStartBreak();
             }}
-            className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-semibold text-zinc-100 bg-zinc-900 border border-zinc-700/80 hover:border-amber-500/60 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+            className="interactive-press w-full flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-bold text-amber-100 bg-gradient-to-r from-amber-500/15 to-amber-600/10 border border-amber-500/35 hover:border-amber-400 hover:bg-amber-500/25 rounded-lg transition-all cursor-pointer"
           >
             <Coffee className="w-3.5 h-3.5 text-amber-400" />
             <span>Break (bon)</span>
@@ -181,8 +189,8 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
       {showCelebrationModal && (
         <div className="absolute inset-0 bg-zinc-950/95 border border-emerald-500/80 rounded-2xl flex flex-col items-center justify-center p-4 text-center z-10 animate-in fade-in zoom-in-95 duration-200">
           <Sparkles className="w-8 h-8 text-emerald-400 mb-2 animate-bounce" />
-          <h4 className="text-sm font-bold text-zinc-100">Break Reserve Earned!</h4>
-          <p className="text-xs text-zinc-300 mt-1 max-w-xs">
+          <h4 className="font-display text-base font-semibold text-white">Break Reserve Earned</h4>
+          <p className="text-xs font-sans text-zinc-300 mt-1 max-w-xs">
             You protected your focus time! Unused break hours roll into your motivation bank.
           </p>
         </div>

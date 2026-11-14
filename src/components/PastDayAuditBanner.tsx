@@ -47,12 +47,12 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
   };
 
   return (
-    <div className="p-4 sm:p-5 rounded-xl bg-amber-950/30 border border-amber-600/50 shadow-lg space-y-3 animate-in fade-in duration-200">
+    <div className="p-4 sm:p-5 rounded-xl bg-[#121215] border border-zinc-700/80 shadow-lg space-y-3 animate-in fade-in duration-200">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
-          <h3 className="text-xs font-bold tracking-wider uppercase text-amber-200">
+          <AlertTriangle className="w-4 h-4 text-emerald-400 shrink-0" />
+          <h3 className="label-scandi text-zinc-200">
             Unreconciled Past Weekday Ledger Detected
           </h3>
         </div>
@@ -62,7 +62,7 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
               playDeskClick();
               onVaultAllPastDays();
             }}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-zinc-950 bg-amber-400 hover:bg-amber-300 rounded-md transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-md transition-colors cursor-pointer"
             title="Move unlogged past hours directly into the Vault of Lost Time"
           >
             <Archive className="w-3.5 h-3.5" />
@@ -71,8 +71,8 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
         </div>
       </div>
 
-      <p className="text-xs text-amber-200/90 leading-relaxed font-mono">
-        You opened the app on Tuesday, but previous weekdays this week have uncompleted or unlogged study quotas. You can either archive them into the <strong>Vault of Lost Time</strong> so today starts fresh, or authorize carrying them forward to today's focus target with a written reason.
+      <p className="text-xs text-zinc-400 leading-relaxed">
+        Previous weekdays this week have uncompleted or unlogged study quotas. You can archive them into the <strong className="text-zinc-200">Vault of Lost Time</strong> so today starts fresh, or carry them forward into today's focus target with a written reason.
       </p>
 
       {/* List of Unreconciled Days */}
@@ -84,7 +84,7 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
           return (
             <div
               key={day.date}
-              className="p-3 bg-zinc-950/70 border border-amber-900/60 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono"
+              className="p-3 bg-zinc-950/70 border border-zinc-800 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono"
             >
               <div>
                 <div className="flex items-center gap-2">
@@ -92,7 +92,7 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
                   <span aria-hidden="true" className="text-zinc-700">·</span>
                   <span className="text-zinc-400">{loggedH}h / 6.0h logged</span>
                 </div>
-                <div className="text-amber-400 mt-0.5">
+                <div className="text-emerald-400 mt-0.5">
                   Unstudied Shortfall: <span className="font-bold">-{deficitH} hours</span>
                 </div>
               </div>
@@ -143,7 +143,7 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
               Cancel
             </button>
           </div>
-          <p className="text-[11px] text-zinc-400">
+          <p className="text-[11px] text-zinc-400 font-sans">
             Please enter a reason why this deficit should carry forward into today's focus target.
           </p>
           <input
@@ -154,7 +154,7 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
               setErrorText('');
             }}
             placeholder='e.g. "Forgot to log desk sessions", "Travel day", "Exam prep"'
-            className="w-full px-3 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-400"
+            className="w-full px-3 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-400"
           />
           {errorText && <span className="text-red-400 block text-[11px]">{errorText}</span>}
           <div className="flex justify-end gap-2 pt-1">
@@ -166,7 +166,7 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
             </button>
             <button
               onClick={handleConfirmCarry}
-              className="px-3 py-1 text-xs font-semibold text-zinc-950 bg-amber-400 hover:bg-amber-300 rounded"
+              className="px-3 py-1.5 text-xs font-semibold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded cursor-pointer"
             >
               Authorize & Add to Today's Quota
             </button>

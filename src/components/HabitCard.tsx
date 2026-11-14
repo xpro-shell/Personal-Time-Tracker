@@ -1,3 +1,4 @@
+import confetti from 'canvas-confetti';
 import {
   Book,
   CheckCircle2,
@@ -96,12 +97,28 @@ export const HabitCard: React.FC<HabitCardProps> = ({
   };
 
   const handleQuickTick = () => {
-    playDeskClick();
+    if (!isTicked) {
+      playEarnedChime();
+      confetti({
+        particleCount: 38,
+        spread: 55,
+        origin: { y: 0.72 },
+        colors: ['#a855f7', '#34d399', '#fbbf24', '#60a5fa', '#ffffff'],
+      });
+    } else {
+      playDeskClick();
+    }
     onToggleHabit(habit);
   };
 
   const handleConfirmCustom = () => {
     playEarnedChime();
+    confetti({
+      particleCount: 42,
+      spread: 60,
+      origin: { y: 0.72 },
+      colors: ['#a855f7', '#34d399', '#fbbf24', '#60a5fa', '#ffffff'],
+    });
     const [startH, startM] = startTime.split(':').map((v) => parseInt(v, 10) || 0);
     const [endH, endM] = endTime.split(':').map((v) => parseInt(v, 10) || 0);
 
@@ -124,80 +141,90 @@ export const HabitCard: React.FC<HabitCardProps> = ({
     setShowCustomTime(false);
   };
 
-  // Color theme classes
-  const colorStyles = {
+  // Curated addictive studio shades per habit colorTheme
+  const THEME_MAP: Record<CustomHabit['colorTheme'], {
+    cardBg: string;
+    border: string;
+    iconBox: string;
+    accentText: string;
+    glowHex: string;
+    btnActive: string;
+    btnDefault: string;
+    progressFill: string;
+  }> = {
     purple: {
-      cardBg: 'bg-[#16131f]',
-      border: 'border-purple-900/60 hover:border-purple-700/80',
-      badge: 'text-purple-300 bg-purple-950/60 border-purple-800/60',
+      cardBg: 'bg-gradient-to-br from-[#1b1128] via-[#121216] to-[#15101e]',
+      border: isTicked ? 'border-purple-400/70 shadow-[0_0_30px_-8px_rgba(168,85,247,0.45)]' : 'border-purple-500/25 hover:border-purple-400/55',
+      iconBox: 'bg-purple-500/15 border-purple-500/35',
       accentText: 'text-purple-400',
-      btnActive: 'bg-purple-900/60 border-purple-500 text-purple-100',
-      btnDefault: 'bg-purple-950/40 border-purple-800/60 text-purple-200 hover:bg-purple-900/50',
-      progressFill: 'bg-purple-500',
+      glowHex: '#a855f7',
+      btnActive: 'bg-purple-500/20 border-purple-400/75 text-purple-100',
+      btnDefault: 'bg-purple-500/10 border-purple-500/30 text-purple-100 hover:border-purple-400 hover:bg-purple-500/20',
+      progressFill: 'bg-gradient-to-r from-purple-500 via-fuchsia-400 to-purple-300',
     },
     bronze: {
-      cardBg: 'bg-[#181512]',
-      border: 'border-amber-900/60 hover:border-amber-700/80',
-      badge: 'text-amber-300 bg-amber-950/60 border-amber-800/60',
-      accentText: 'text-amber-400',
-      btnActive: 'bg-amber-900/60 border-amber-500 text-amber-100',
-      btnDefault: 'bg-amber-950/40 border-amber-800/60 text-amber-200 hover:bg-amber-900/50',
-      progressFill: 'bg-amber-500',
+      cardBg: 'bg-gradient-to-br from-[#21150f] via-[#121215] to-[#17120e]',
+      border: isTicked ? 'border-orange-400/70 shadow-[0_0_30px_-8px_rgba(251,146,60,0.45)]' : 'border-orange-500/25 hover:border-orange-400/55',
+      iconBox: 'bg-orange-500/15 border-orange-500/35',
+      accentText: 'text-orange-400',
+      glowHex: '#fb923c',
+      btnActive: 'bg-orange-500/20 border-orange-400/75 text-orange-100',
+      btnDefault: 'bg-orange-500/10 border-orange-500/30 text-orange-100 hover:border-orange-400 hover:bg-orange-500/20',
+      progressFill: 'bg-gradient-to-r from-orange-500 via-amber-400 to-orange-300',
     },
     amber: {
-      cardBg: 'bg-[#171410]',
-      border: 'border-amber-900/60 hover:border-amber-600/80',
-      badge: 'text-amber-300 bg-amber-950/60 border-amber-800/60',
+      cardBg: 'bg-gradient-to-br from-[#1f170c] via-[#121215] to-[#17130d]',
+      border: isTicked ? 'border-amber-400/70 shadow-[0_0_30px_-8px_rgba(245,158,11,0.45)]' : 'border-amber-500/25 hover:border-amber-400/55',
+      iconBox: 'bg-amber-500/15 border-amber-500/35',
       accentText: 'text-amber-400',
-      btnActive: 'bg-amber-900/60 border-amber-500 text-amber-100',
-      btnDefault: 'bg-amber-950/40 border-amber-800/60 text-amber-200 hover:bg-amber-900/50',
-      progressFill: 'bg-amber-500',
+      glowHex: '#f59e0b',
+      btnActive: 'bg-amber-500/20 border-amber-400/75 text-amber-100',
+      btnDefault: 'bg-amber-500/10 border-amber-500/30 text-amber-100 hover:border-amber-400 hover:bg-amber-500/20',
+      progressFill: 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300',
     },
     emerald: {
-      cardBg: 'bg-[#111915]',
-      border: 'border-emerald-900/60 hover:border-emerald-700/80',
-      badge: 'text-emerald-300 bg-emerald-950/60 border-emerald-800/60',
+      cardBg: 'bg-gradient-to-br from-[#0e211a] via-[#121215] to-[#0f1714]',
+      border: isTicked ? 'border-emerald-400/75 shadow-[0_0_30px_-8px_rgba(16,185,129,0.45)]' : 'border-emerald-500/25 hover:border-emerald-400/55',
+      iconBox: 'bg-emerald-500/15 border-emerald-500/35',
       accentText: 'text-emerald-400',
-      btnActive: 'bg-emerald-900/60 border-emerald-500 text-emerald-100',
-      btnDefault: 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200 hover:bg-emerald-900/50',
-      progressFill: 'bg-emerald-500',
+      glowHex: '#10b981',
+      btnActive: 'bg-emerald-500/20 border-emerald-400/75 text-emerald-100',
+      btnDefault: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-100 hover:border-emerald-400 hover:bg-emerald-500/20',
+      progressFill: 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300',
     },
     blue: {
-      cardBg: 'bg-[#111622]',
-      border: 'border-blue-900/60 hover:border-blue-700/80',
-      badge: 'text-blue-300 bg-blue-950/60 border-blue-800/60',
-      accentText: 'text-blue-400',
-      btnActive: 'bg-blue-900/60 border-blue-500 text-blue-100',
-      btnDefault: 'bg-blue-950/40 border-blue-800/60 text-blue-200 hover:bg-blue-900/50',
-      progressFill: 'bg-blue-500',
+      cardBg: 'bg-gradient-to-br from-[#0f192b] via-[#121216] to-[#101520]',
+      border: isTicked ? 'border-sky-400/70 shadow-[0_0_30px_-8px_rgba(56,189,248,0.45)]' : 'border-sky-500/25 hover:border-sky-400/55',
+      iconBox: 'bg-sky-500/15 border-sky-500/35',
+      accentText: 'text-sky-400',
+      glowHex: '#38bdf8',
+      btnActive: 'bg-sky-500/20 border-sky-400/75 text-sky-100',
+      btnDefault: 'bg-sky-500/10 border-sky-500/30 text-sky-100 hover:border-sky-400 hover:bg-sky-500/20',
+      progressFill: 'bg-gradient-to-r from-blue-500 via-sky-400 to-cyan-300',
     },
     rose: {
-      cardBg: 'bg-[#1c1214]',
-      border: 'border-rose-900/60 hover:border-rose-700/80',
-      badge: 'text-rose-300 bg-rose-950/60 border-rose-800/60',
+      cardBg: 'bg-gradient-to-br from-[#231018] via-[#121215] to-[#1a1015]',
+      border: isTicked ? 'border-rose-400/70 shadow-[0_0_30px_-8px_rgba(244,63,94,0.45)]' : 'border-rose-500/25 hover:border-rose-400/55',
+      iconBox: 'bg-rose-500/15 border-rose-500/35',
       accentText: 'text-rose-400',
-      btnActive: 'bg-rose-900/60 border-rose-500 text-rose-100',
-      btnDefault: 'bg-rose-950/40 border-rose-800/60 text-rose-200 hover:bg-rose-900/50',
-      progressFill: 'bg-rose-500',
+      glowHex: '#f43f5e',
+      btnActive: 'bg-rose-500/20 border-rose-400/75 text-rose-100',
+      btnDefault: 'bg-rose-500/10 border-rose-500/30 text-rose-100 hover:border-rose-400 hover:bg-rose-500/20',
+      progressFill: 'bg-gradient-to-r from-rose-500 via-pink-400 to-rose-300',
     },
     indigo: {
-      cardBg: 'bg-[#111322]',
-      border: 'border-indigo-900/60 hover:border-indigo-700/80',
-      badge: 'text-indigo-300 bg-indigo-950/60 border-indigo-800/60',
+      cardBg: 'bg-gradient-to-br from-[#12152c] via-[#121216] to-[#141222]',
+      border: isTicked ? 'border-indigo-400/70 shadow-[0_0_30px_-8px_rgba(99,102,241,0.45)]' : 'border-indigo-500/25 hover:border-indigo-400/55',
+      iconBox: 'bg-indigo-500/15 border-indigo-500/35',
       accentText: 'text-indigo-400',
-      btnActive: 'bg-indigo-900/60 border-indigo-500 text-indigo-100',
-      btnDefault: 'bg-indigo-950/40 border-indigo-800/60 text-indigo-200 hover:bg-indigo-900/50',
-      progressFill: 'bg-indigo-500',
+      glowHex: '#6366f1',
+      btnActive: 'bg-indigo-500/20 border-indigo-400/75 text-indigo-100',
+      btnDefault: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-100 hover:border-indigo-400 hover:bg-indigo-500/20',
+      progressFill: 'bg-gradient-to-r from-indigo-500 via-violet-400 to-indigo-300',
     },
-  }[habit.colorTheme] || {
-    cardBg: 'bg-[#16131f]',
-    border: 'border-purple-900/60 hover:border-purple-700/80',
-    badge: 'text-purple-300 bg-purple-950/60 border-purple-800/60',
-    accentText: 'text-purple-400',
-    btnActive: 'bg-purple-900/60 border-purple-500 text-purple-100',
-    btnDefault: 'bg-purple-950/40 border-purple-800/60 text-purple-200 hover:bg-purple-900/50',
-    progressFill: 'bg-purple-500',
   };
+
+  const colorStyles = THEME_MAP[habit.colorTheme] || THEME_MAP.purple;
 
   const progressPercent = Math.min(100, Math.round((completedMinutes / habit.dailyTargetMinutes) * 100));
   const formatHm = (m: number) => {
@@ -215,11 +242,17 @@ export const HabitCard: React.FC<HabitCardProps> = ({
     : '';
 
   return (
-    <div className={`p-5 rounded-2xl border transition-all duration-200 hover:-translate-y-0.5 ${colorStyles.cardBg} ${colorStyles.border}`}>
+    <div className={`studio-card p-5 rounded-2xl border overflow-hidden ${colorStyles.cardBg} ${colorStyles.border}`}>
+      {/* Corner Glow */}
+      <div
+        className="pointer-events-none absolute -top-14 -right-14 w-32 h-32 rounded-full blur-3xl opacity-30"
+        style={{ background: `radial-gradient(circle, ${colorStyles.glowHex}, transparent 70%)` }}
+      />
+
       {/* Top Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
+      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/70 relative">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-zinc-900/90 border border-zinc-700/80 flex items-center justify-center shadow-sm">
+          <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shadow-sm ${colorStyles.iconBox}`}>
             {habit.iconType === 'music' && <Music className={`w-4 h-4 ${colorStyles.accentText}`} />}
             {habit.iconType === 'dumbbell' && <Dumbbell className={`w-4 h-4 ${colorStyles.accentText}`} />}
             {habit.iconType === 'book' && <Book className={`w-4 h-4 ${colorStyles.accentText}`} />}
@@ -230,18 +263,18 @@ export const HabitCard: React.FC<HabitCardProps> = ({
             {habit.iconType === 'moon' && <Moon className={`w-4 h-4 ${colorStyles.accentText}`} />}
           </div>
           <div>
-            <h3 className="font-display text-base font-bold tracking-tight text-zinc-100 flex items-center gap-2">
+            <h3 className="font-display text-lg font-semibold tracking-tight text-white flex items-center gap-2">
               <span>{habit.name}</span>
             </h3>
-            <span className="text-[10px] font-mono text-zinc-400">
-              Shortcode · <code className={colorStyles.accentText}>{habit.shortcode}</code>
+            <span className="label-scandi text-zinc-400 block mt-0.5">
+              Shortcode · <code className={`font-mono normal-case tracking-normal font-semibold ${colorStyles.accentText}`}>{habit.shortcode}</code>
             </span>
           </div>
         </div>
 
         <button
           onClick={() => onEditHabit(habit)}
-          className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800/80 rounded-lg transition-colors"
+          className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800/80 rounded-lg transition-colors cursor-pointer"
           title="Edit Habit Configuration"
         >
           <Sliders className="w-3.5 h-3.5" />
@@ -249,27 +282,27 @@ export const HabitCard: React.FC<HabitCardProps> = ({
       </div>
 
       {/* Quota Progress Bar */}
-      <div className="my-4">
+      <div className="my-4 relative">
         <div className="flex items-center justify-between text-xs font-mono mb-1.5">
-          <span className="text-zinc-400">Daily Quota</span>
-          <span className="text-zinc-200 tabular-nums font-semibold">
+          <span className="label-scandi text-zinc-400">Daily Quota</span>
+          <span className="text-zinc-100 tabular-nums font-semibold">
             {formatHm(completedMinutes)} / {formatHm(habit.dailyTargetMinutes)} ({progressPercent}%)
           </span>
         </div>
-        <div className="w-full h-2 rounded-full bg-zinc-900 border border-zinc-800 overflow-hidden">
+        <div className="w-full h-2 rounded-full bg-zinc-950 border border-zinc-800/90 overflow-hidden">
           <div
-            className={`h-full transition-all duration-500 ${colorStyles.progressFill}`}
+            className={`h-full rounded-full transition-all duration-500 progress-shimmer ${colorStyles.progressFill}`}
             style={{ width: `${progressPercent}%` }}
           />
         </div>
       </div>
 
       {/* Main Action Bar */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 relative">
         <button
           type="button"
           onClick={handleQuickTick}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-medium rounded-xl border transition-all cursor-pointer group ${
+          className={`interactive-press flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-medium rounded-xl border transition-all cursor-pointer group ${
             isTicked
               ? `${colorStyles.btnActive} hover:bg-red-950/70 hover:border-red-500 hover:text-red-200`
               : `${colorStyles.btnDefault}`
@@ -282,7 +315,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
         >
           {isTicked ? (
             <>
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 group-hover:hidden" />
+              <CheckCircle2 className={`w-4 h-4 ${colorStyles.accentText} group-hover:hidden`} />
               <RotateCcw className="w-4 h-4 text-red-400 hidden group-hover:inline" />
               <span className="group-hover:hidden">Logged ({existingTimeWindow || `${habit.defaultDurationHours}h`})</span>
               <span className="hidden group-hover:inline">Undo / Remove Entry</span>
@@ -301,10 +334,10 @@ export const HabitCard: React.FC<HabitCardProps> = ({
             playDeskClick();
             setShowCustomTime((prev) => !prev);
           }}
-          className={`px-3 py-2 text-xs font-mono rounded-xl border transition-colors cursor-pointer ${
+          className={`interactive-press px-3 py-2 text-xs font-mono rounded-xl border transition-all cursor-pointer ${
             showCustomTime
-              ? 'bg-zinc-100 text-zinc-950 border-white'
-              : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800'
+              ? 'bg-emerald-400 text-zinc-950 border-emerald-300'
+              : 'bg-zinc-900/90 text-zinc-300 border-zinc-800 hover:text-white hover:border-zinc-600'
           }`}
           title="Forgot to tap on time? Enter custom start/end times with auto-calculated duration"
         >
@@ -326,19 +359,19 @@ export const HabitCard: React.FC<HabitCardProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-[10px] font-mono uppercase text-zinc-400 mb-1">
+              <label className="block label-scandi text-zinc-500 mb-1">
                 Start Time
               </label>
               <input
                 type="time"
                 value={startTime}
                 onChange={(e) => handleStartTimeChange(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-amber-400"
+                className="w-full px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-mono uppercase text-zinc-400 mb-1">
+              <label className="block label-scandi text-zinc-500 mb-1">
                 Duration (Hours)
               </label>
               <input
@@ -348,19 +381,19 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                 max="12"
                 value={durationHours}
                 onChange={(e) => handleDurationChange(parseFloat(e.target.value) || 1)}
-                className="w-full px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-amber-400"
+                className="w-full px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-mono uppercase text-zinc-400 mb-1">
-                End Time (Calculated)
+              <label className="block label-scandi text-zinc-500 mb-1">
+                End Time
               </label>
               <input
                 type="time"
                 value={endTime}
                 onChange={(e) => handleEndTimeChange(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-amber-400 font-semibold"
+                className="w-full px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400 font-semibold"
               />
             </div>
           </div>
@@ -373,14 +406,14 @@ export const HabitCard: React.FC<HabitCardProps> = ({
               <button
                 type="button"
                 onClick={() => setShowCustomTime(false)}
-                className="px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                className="px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmCustom}
-                className="px-3.5 py-1 text-xs font-semibold text-zinc-950 bg-amber-400 hover:bg-amber-300 rounded transition-colors shadow-sm cursor-pointer"
+                className="px-3.5 py-1 text-xs font-semibold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors shadow-sm cursor-pointer"
               >
                 Log Entry
               </button>

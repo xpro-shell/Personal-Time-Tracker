@@ -52,10 +52,10 @@ const WALKTHROUGH_STEPS: WalkthroughStep[] = [
       'Hit "Undo Last" anytime if you accidentally logged the wrong entry.',
       'Click "Day Logout (OTD)" when finished to auto-check missing quotas or celebrate completion.',
     ],
-    botVisorHex: '#fbbf24',
-    accentTextClass: 'text-amber-400',
-    borderClass: 'border-amber-500/50',
-    icon: <Command className="w-4 h-4 text-amber-400" />,
+    botVisorHex: '#34d399',
+    accentTextClass: 'text-emerald-400',
+    borderClass: 'border-zinc-700',
+    icon: <Command className="w-4 h-4 text-emerald-400" />,
   },
   {
     id: 'focus',
@@ -68,9 +68,9 @@ const WALKTHROUGH_STEPS: WalkthroughStep[] = [
       'Pick a Quick Topic chip (like DSA or Revision) or type your own, then click "Study (S on)".',
       'Or use the Quick Shortcode Bar: type "s on Math", "s off", "bon", "boff", "riyaz 3", or "undo" + Enter.',
     ],
-    botVisorHex: '#10b981',
+    botVisorHex: '#34d399',
     accentTextClass: 'text-emerald-400',
-    borderClass: 'border-emerald-500/50',
+    borderClass: 'border-zinc-700',
     icon: <BookOpen className="w-4 h-4 text-emerald-400" />,
   },
   {
@@ -84,10 +84,10 @@ const WALKTHROUGH_STEPS: WalkthroughStep[] = [
       'Click "Break (bon)" at the bottom of this card whenever stepping away from the desk.',
       'Click "End Break (boff)" when back — unused minutes roll into your Carry-Forward Reserve.',
     ],
-    botVisorHex: '#f59e0b',
-    accentTextClass: 'text-amber-300',
-    borderClass: 'border-amber-500/50',
-    icon: <Coffee className="w-4 h-4 text-amber-400" />,
+    botVisorHex: '#34d399',
+    accentTextClass: 'text-emerald-400',
+    borderClass: 'border-zinc-700',
+    icon: <Coffee className="w-4 h-4 text-emerald-400" />,
   },
   {
     id: 'sleep',
@@ -95,15 +95,15 @@ const WALKTHROUGH_STEPS: WalkthroughStep[] = [
     targetTab: 'desk',
     sectionTag: 'Section 04 · Highlighted on screen',
     title: 'Restorative Sleep Tracker',
-    whatItIsFor: 'Logs your sleep hours so overnight rest shows up in calm indigo instead of red unlogged lost time.',
+    whatItIsFor: 'Logs your sleep hours so overnight rest shows up cleanly in your timeline instead of red unlogged lost time.',
     howToUse: [
       'Click "Log Sleep", choose bedtime → wake-up (or tap a preset like 23:00 → 07:00), and hit Save.',
       'Or tap "Start Night Timer" if tracking live overnight.',
     ],
-    botVisorHex: '#818cf8',
-    accentTextClass: 'text-indigo-400',
-    borderClass: 'border-indigo-500/50',
-    icon: <Moon className="w-4 h-4 text-indigo-400" />,
+    botVisorHex: '#34d399',
+    accentTextClass: 'text-emerald-400',
+    borderClass: 'border-zinc-700',
+    icon: <Moon className="w-4 h-4 text-emerald-400" />,
   },
   {
     id: 'habits',
@@ -115,12 +115,12 @@ const WALKTHROUGH_STEPS: WalkthroughStep[] = [
     howToUse: [
       'Tap "Track (Auto +3h)" to mark it done immediately from the current time.',
       'Forgot to tap earlier? Click the Clock icon next to it to set your real past start/end time.',
-      'Click "Customize / Add Habits" to rename Riyaz, change colors, or create new habits.',
+      'Click "Customize / Add Habits" to rename Riyaz or create new habits.',
     ],
-    botVisorHex: '#c084fc',
-    accentTextClass: 'text-purple-400',
-    borderClass: 'border-purple-500/50',
-    icon: <Music className="w-4 h-4 text-purple-400" />,
+    botVisorHex: '#34d399',
+    accentTextClass: 'text-emerald-400',
+    borderClass: 'border-zinc-700',
+    icon: <Music className="w-4 h-4 text-emerald-400" />,
   },
   {
     id: 'timeline',
@@ -133,10 +133,10 @@ const WALKTHROUGH_STEPS: WalkthroughStep[] = [
       'Switch views between 24h Heatmap, Candlestick, Donut/Pie, and Stacked Bar.',
       'Click any red unlogged gap or logged entry to inspect or delete it.',
     ],
-    botVisorHex: '#2dd4bf',
-    accentTextClass: 'text-teal-400',
-    borderClass: 'border-teal-500/50',
-    icon: <BarChart3 className="w-4 h-4 text-teal-400" />,
+    botVisorHex: '#34d399',
+    accentTextClass: 'text-emerald-400',
+    borderClass: 'border-zinc-700',
+    icon: <BarChart3 className="w-4 h-4 text-emerald-400" />,
   },
   {
     id: 'vault',
@@ -149,10 +149,10 @@ const WALKTHROUGH_STEPS: WalkthroughStep[] = [
       'On any archived or pending shortfall, click "Carry Forward (+Xh)" or "Write Reason".',
       'Type your honest reason and confirm to add those hours back into your active Study Quota.',
     ],
-    botVisorHex: '#fbbf24',
-    accentTextClass: 'text-amber-400',
-    borderClass: 'border-amber-500/50',
-    icon: <ShieldAlert className="w-4 h-4 text-amber-400" />,
+    botVisorHex: '#34d399',
+    accentTextClass: 'text-emerald-400',
+    borderClass: 'border-zinc-700',
+    icon: <ShieldAlert className="w-4 h-4 text-emerald-400" />,
   },
   {
     id: 'achievements',
@@ -167,8 +167,8 @@ const WALKTHROUGH_STEPS: WalkthroughStep[] = [
       'Need this guide again later? Tap "Intro" in the top header anytime!',
     ],
     botVisorHex: '#34d399',
-    accentTextClass: 'text-emerald-300',
-    borderClass: 'border-emerald-400/60',
+    accentTextClass: 'text-emerald-400',
+    borderClass: 'border-zinc-700',
     icon: <Award className="w-4 h-4 text-emerald-400" />,
   },
 ];
@@ -183,7 +183,6 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
   const [stepIndex, setStepIndex] = useState(0);
   const [isDancing, setIsDancing] = useState(true);
 
-  // Reset to step 0 when opened
   useEffect(() => {
     if (isOpen) {
       setStepIndex(0);
@@ -194,7 +193,6 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
   const onNavigateTabRef = React.useRef(onNavigateTab);
   onNavigateTabRef.current = onNavigateTab;
 
-  // Live Spotlight Effect: Switch tab, scroll target section into view, and apply glowing highlight ring
   useEffect(() => {
     if (!isOpen) return;
 
@@ -204,7 +202,6 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
     let scrollTimer: ReturnType<typeof setTimeout> | null = null;
     let highlightedEl: HTMLElement | null = null;
 
-    // Wait briefly so tab DOM mounts cleanly
     scrollTimer = setTimeout(() => {
       const targetEl = document.getElementById(currentStep.targetElementId);
       if (targetEl) {
@@ -239,7 +236,7 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
         particleCount: 65,
         spread: 70,
         origin: { y: 0.7 },
-        colors: ['#10b981', '#fbbf24', '#34d399', '#ffffff'],
+        colors: ['#10b981', '#34d399', '#e4e4e7', '#ffffff'],
       });
       onNavigateTab('desk');
       onCompleteLesson();
@@ -275,12 +272,12 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
       aria-label="Interactive Section Walkthrough"
     >
       <div
-        className={`rounded-2xl bg-[#101216]/95 backdrop-blur-xl border ${step.borderClass} shadow-[0_20px_60px_rgba(0,0,0,0.85)] overflow-hidden`}
+        className={`rounded-2xl bg-[#111114]/95 backdrop-blur-xl border ${step.borderClass} shadow-[0_20px_60px_rgba(0,0,0,0.9)] overflow-hidden`}
       >
         {/* Top Progress Bar */}
         <div className="w-full h-1 bg-zinc-900">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 transition-all duration-300"
+            className="h-full bg-emerald-400 transition-all duration-300"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -289,7 +286,7 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
         <div className="px-4 py-2.5 bg-zinc-950/80 border-b border-zinc-800/80 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {step.icon}
-            <span className={`text-[11px] font-mono font-semibold ${step.accentTextClass}`}>
+            <span className="label-scandi text-emerald-400">
               {step.sectionTag}
             </span>
           </div>
@@ -304,7 +301,7 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
                 playDeskClick();
                 setIsDancing((d) => !d);
               }}
-              className="px-2 py-0.5 text-[10px] font-mono rounded bg-zinc-900 border border-zinc-800 text-emerald-300 hover:border-emerald-500/40 cursor-pointer"
+              className="px-2 py-0.5 text-[10px] font-mono rounded bg-zinc-900 border border-zinc-800 text-emerald-400 hover:border-emerald-500/40 cursor-pointer"
               title="Toggle CoachBot animation"
             >
               {isDancing ? '♪ Bot' : 'Paused'}
@@ -327,7 +324,7 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
             {isDancing && (
               <div className="flex gap-2 text-[10px] font-mono leading-none mb-0.5 select-none pointer-events-none">
                 <span className="animate-bot-note text-emerald-400">♪</span>
-                <span className="animate-bot-note text-amber-400" style={{ animationDelay: '0.6s' }}>
+                <span className="animate-bot-note text-zinc-300" style={{ animationDelay: '0.6s' }}>
                   ✦
                 </span>
               </div>
@@ -361,12 +358,12 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
                 <rect x="123" y="92" width="14" height="36" rx="7" fill="#27272a" stroke="#52525b" strokeWidth="2" />
                 <circle cx="130" cy="131" r="6" fill={step.botVisorHex} opacity="0.9" />
                 <line x1="133" y1="131" x2="156" y2="100" stroke="#e4e4e7" strokeWidth="2.5" strokeLinecap="round" />
-                <circle cx="157" cy="99" r="3.5" fill="#fbbf24" />
+                <circle cx="157" cy="99" r="3.5" fill="#10b981" />
               </g>
               <rect x="52" y="90" width="66" height="52" rx="14" fill="#18181b" stroke="#3f3f46" strokeWidth="2.5" />
               <rect x="65" y="102" width="40" height="24" rx="6" fill="#09090b" stroke="#27272a" strokeWidth="1.5" />
               <rect x="72" y="111" width="5" height="10" rx="2" fill={step.botVisorHex} />
-              <rect x="82.5" y="106" width="5" height="15" rx="2" fill="#fbbf24" />
+              <rect x="82.5" y="106" width="5" height="15" rx="2" fill="#e4e4e7" />
               <rect x="93" y="109" width="5" height="12" rx="2" fill={step.botVisorHex} />
               <rect x="64" y="142" width="12" height="24" rx="5" fill="#27272a" stroke="#52525b" strokeWidth="2" />
               <rect x="94" y="142" width="12" height="24" rx="5" fill="#27272a" stroke="#52525b" strokeWidth="2" />
@@ -378,19 +375,19 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
           {/* Practical Live Explanation */}
           <div className="flex-1 min-w-0 space-y-2.5">
             <div>
-              <h3 className="font-display text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
+              <h3 className="font-display text-lg sm:text-xl font-semibold text-white tracking-tight leading-snug">
                 {step.title}
               </h3>
-              <p className="text-xs text-zinc-300 leading-relaxed mt-0.5">
-                <strong className="text-zinc-100">Purpose:</strong> {step.whatItIsFor}
+              <p className="text-xs font-sans text-zinc-300 leading-relaxed mt-0.5">
+                <strong className="text-zinc-100 font-semibold">Purpose:</strong> {step.whatItIsFor}
               </p>
             </div>
 
             <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-1.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-semibold block">
-                How to use it:
+              <span className="label-scandi text-emerald-400 block">
+                How to use it
               </span>
-              <ul className="space-y-1 text-[11px] sm:text-xs text-zinc-200 leading-snug">
+              <ul className="space-y-1 text-[11px] sm:text-xs font-sans text-zinc-200 leading-snug">
                 {step.howToUse.map((line, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className={`font-mono font-bold ${step.accentTextClass} shrink-0`}>
@@ -404,7 +401,7 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
           </div>
         </div>
 
-        {/* Step Dots + Footer Actions */}
+        {/* Footer Actions */}
         <div className="px-4 py-3 bg-zinc-950/90 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
             <button
@@ -418,7 +415,7 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
             <button
               type="button"
               onClick={handleDisableStartup}
-              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-mono text-zinc-400 hover:text-amber-300 bg-zinc-900/60 border border-zinc-800 hover:border-amber-500/40 rounded-md transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-mono text-zinc-400 hover:text-emerald-300 bg-zinc-900/60 border border-zinc-800 hover:border-emerald-500/40 rounded-md transition-colors cursor-pointer"
               title="Don't show automatically on startup (tap Intro anytime to replay)"
             >
               <EyeOff className="w-3 h-3" />
@@ -440,11 +437,7 @@ export const RobotTutorialModal: React.FC<RobotTutorialModalProps> = ({
             <button
               type="button"
               onClick={handleNext}
-              className={`flex items-center gap-1 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-sm ${
-                isLast
-                  ? 'bg-amber-400 hover:bg-amber-300 text-zinc-950'
-                  : 'bg-emerald-400 hover:bg-emerald-300 text-zinc-950'
-              }`}
+              className="flex items-center gap-1 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-sm bg-emerald-400 hover:bg-emerald-300 text-zinc-950"
             >
               <span>{isLast ? 'Finish (+25 XP)' : 'Next Section'}</span>
               {isLast ? <Flame className="w-3.5 h-3.5 fill-current" /> : <ChevronRight className="w-3.5 h-3.5" />}

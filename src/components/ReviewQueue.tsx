@@ -21,15 +21,15 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
   return (
     <div className="space-y-6">
       {/* 1. "To Fill" List (Unclear or Missing Entries) */}
-      <div className="p-6 rounded-xl bg-[#141416] border border-zinc-800/80">
+      <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800/80">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-amber-400" />
-            <h2 className="text-sm font-semibold tracking-wide uppercase text-zinc-200">
+          <div className="flex items-center gap-2.5">
+            <Clock className="w-5 h-5 text-emerald-400" />
+            <h2 className="font-display text-base font-semibold tracking-tight text-white">
               "To Fill" Queue ({toFillGaps.length})
             </h2>
           </div>
-          <span className="text-xs font-mono text-zinc-500">Unclosed Sessions & Missing Offs</span>
+          <span className="label-scandi text-zinc-500">Unclosed Sessions & Missing Offs</span>
         </div>
         <p className="text-xs text-zinc-400 mb-4">
           Entries like an "S on" with no "S off" or unclosed breaks go here. You can fill in the missing duration whenever you like.
@@ -44,7 +44,7 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
               >
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-amber-400 font-semibold">{gap.type.replace(/_/g, ' ')}</span>
+                    <span className="text-emerald-400 font-semibold">{gap.type.replace(/_/g, ' ')}</span>
                     <span aria-hidden="true" className="text-zinc-700">·</span>
                     <span className="text-zinc-400">
                       {new Date(gap.startTime).toLocaleString([], {
@@ -53,7 +53,7 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
                       })}
                     </span>
                   </div>
-                  <p className="text-zinc-300">{gap.description}</p>
+                  <p className="text-zinc-300 font-sans">{gap.description}</p>
                 </div>
 
                 {/* Fill Form */}
@@ -63,7 +63,7 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
                     onChange={(e) =>
                       setFillType({ ...fillType, [gap.id]: e.target.value as 'study' | 'break' })
                     }
-                    className="px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-200 focus:outline-none"
+                    className="px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-emerald-400"
                   >
                     <option value="study">Study</option>
                     <option value="break">Break</option>
@@ -78,7 +78,7 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
                     onChange={(e) =>
                       setFillDuration({ ...fillDuration, [gap.id]: parseInt(e.target.value, 10) || 0 })
                     }
-                    className="w-24 px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+                    className="w-24 px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-400"
                   />
 
                   <button
@@ -87,7 +87,7 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
                       const typ = fillType[gap.id] || 'study';
                       onFillGap(gap.id, dur, typ);
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-zinc-950 bg-zinc-100 rounded hover:bg-white transition-colors cursor-pointer"
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-zinc-950 bg-emerald-400 rounded hover:bg-emerald-300 transition-colors cursor-pointer"
                   >
                     <Check className="w-3.5 h-3.5" />
                     <span>Fill</span>
@@ -107,15 +107,15 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
       </div>
 
       {/* 2. Review Notes List (Numbers & Amounts from WhatsApp) */}
-      <div className="p-6 rounded-xl bg-[#141416] border border-zinc-800/80">
+      <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800/80">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-zinc-400" />
-            <h2 className="text-sm font-semibold tracking-wide uppercase text-zinc-200">
+          <div className="flex items-center gap-2.5">
+            <DollarSign className="w-5 h-5 text-emerald-400" />
+            <h2 className="font-display text-base font-semibold tracking-tight text-white">
               Numbers, Amounts & Non-Time Notes ({reviewItems.length})
             </h2>
           </div>
-          <span className="text-xs font-mono text-zinc-500">Never Guessed Automatically</span>
+          <span className="label-scandi text-zinc-500">Never Guessed Automatically</span>
         </div>
         <p className="text-xs text-zinc-400 mb-4">
           Chat entries containing random numbers, cash amounts, or non-time chatter are placed here so they never corrupt your focus time statistics.

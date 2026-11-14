@@ -109,7 +109,7 @@ export const DayCloseModal: React.FC<DayCloseModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-      <div className="w-full max-w-lg bg-[#141418] border border-zinc-800 rounded-2xl p-6 shadow-2xl relative my-4">
+      <div className="w-full max-w-lg bg-[#121215] border border-zinc-800 rounded-2xl p-6 shadow-2xl relative my-4">
         <button
           type="button"
           onClick={onClose}
@@ -119,36 +119,36 @@ export const DayCloseModal: React.FC<DayCloseModalProps> = ({
         </button>
 
         {/* Modal Title */}
-        <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex items-center gap-2.5 mb-1.5">
           {isAllCompleted ? (
-            <Trophy className="w-5 h-5 text-amber-400" />
+            <Trophy className="w-5 h-5 text-emerald-400" />
           ) : (
-            <ShieldAlert className="w-5 h-5 text-amber-400" />
+            <ShieldAlert className="w-5 h-5 text-emerald-400" />
           )}
-          <h2 className="text-base font-semibold text-zinc-100">
+          <h2 className="font-display text-lg font-semibold text-white tracking-tight">
             Day Logout Auto-Audit & Reconciliation
           </h2>
         </div>
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs font-sans text-zinc-400">
           Automatic system scan of today's study quota, restorative sleep, and habits ledger.
         </p>
 
         {/* Auto-Detection Diagnostic Result */}
         {isAllCompleted ? (
-          <div className="my-4 p-4 rounded-xl bg-gradient-to-br from-emerald-950/60 via-zinc-900 to-amber-950/30 border border-emerald-500/50 space-y-2 shadow-lg">
-            <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs uppercase tracking-wider">
+          <div className="my-4 p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/45 space-y-2 shadow-lg">
+            <div className="flex items-center gap-2 text-emerald-400 font-bold label-scandi">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>All Daily Quotas & Habits Completed!</span>
+              <span>All Daily Quotas & Habits Completed</span>
             </div>
-            <p className="text-xs text-zinc-200 leading-relaxed">
+            <p className="text-xs font-sans text-zinc-200 leading-relaxed">
               Exceptional discipline today! Every task, study hour, sleep log, and habit target is checked off. Unused break hours bank cleanly into your Earned Reserve.
             </p>
           </div>
         ) : (
           <div className="my-4 p-4 rounded-xl bg-red-950/30 border border-red-500/40 space-y-2.5">
-            <div className="flex items-center gap-2 text-red-300 font-bold text-xs uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-red-300 font-bold label-scandi">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-              <span>You have not completed:</span>
+              <span>You have not completed</span>
             </div>
             <ul className="space-y-1.5 text-xs font-mono text-zinc-200">
               {missingItems.map((item) => (
@@ -163,13 +163,13 @@ export const DayCloseModal: React.FC<DayCloseModalProps> = ({
 
         {/* Daily Scoreboard */}
         <div className="mb-4 grid grid-cols-2 gap-3 text-xs font-mono">
-          <div className="p-3 bg-zinc-900/80 border border-zinc-800 rounded-lg">
-            <span className="text-zinc-500 block mb-1">Study Completed</span>
-            <div className="text-base font-bold text-zinc-100 tabular-nums">
+          <div className="p-3 bg-zinc-950/80 border border-zinc-800 rounded-lg">
+            <span className="label-scandi text-zinc-500 block mb-1">Study Completed</span>
+            <div className="text-base font-bold text-white tabular-nums">
               {formatHm(studyMinutesToday)} / 6h 00m
             </div>
             {hasDeficit ? (
-              <span className="text-amber-400 block mt-1">
+              <span className="text-zinc-300 block mt-1">
                 Shortfall: -{formatHm(studyDeficitMinutes)}
               </span>
             ) : (
@@ -177,9 +177,9 @@ export const DayCloseModal: React.FC<DayCloseModalProps> = ({
             )}
           </div>
 
-          <div className="p-3 bg-zinc-900/80 border border-zinc-800 rounded-lg">
-            <span className="text-zinc-500 block mb-1">Break Time Used</span>
-            <div className="text-base font-bold text-zinc-100 tabular-nums">
+          <div className="p-3 bg-zinc-950/80 border border-zinc-800 rounded-lg">
+            <span className="label-scandi text-zinc-500 block mb-1">Break Time Used</span>
+            <div className="text-base font-bold text-white tabular-nums">
               {formatHm(breakMinutesToday)} / 2h 00m
             </div>
             {breakSurplusMinutes > 0 ? (
@@ -195,10 +195,10 @@ export const DayCloseModal: React.FC<DayCloseModalProps> = ({
         {/* Reason Input requirement when study deficit exists */}
         {hasDeficit && (
           <div className="mb-4">
-            <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+            <label className="block label-scandi text-zinc-300 mb-1.5">
               Reason for Carrying Forward Study Debt <span className="text-red-400">*</span>
             </label>
-            <p className="text-xs text-zinc-500 mb-2">
+            <p className="text-xs font-sans text-zinc-500 mb-2">
               Explain why this {formatHm(studyDeficitMinutes)} should carry over to tomorrow's quota, or retire it to the Vault of Lost Time.
             </p>
             <textarea
@@ -209,7 +209,7 @@ export const DayCloseModal: React.FC<DayCloseModalProps> = ({
                 setErrorText('');
               }}
               placeholder="e.g. Urgent project deadline, travel day, caught up in college lab..."
-              className="w-full px-3 py-2 text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+              className="w-full px-3 py-2 text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-400"
             />
             {errorText && <span className="text-xs text-red-400 mt-1 block">{errorText}</span>}
           </div>
@@ -232,11 +232,7 @@ export const DayCloseModal: React.FC<DayCloseModalProps> = ({
           <button
             type="button"
             onClick={handleApproveCarryForward}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
-              isAllCompleted
-                ? 'bg-emerald-400 text-zinc-950 hover:bg-emerald-300'
-                : 'bg-zinc-100 text-zinc-950 hover:bg-white'
-            }`}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer bg-emerald-400 text-zinc-950 hover:bg-emerald-300"
           >
             <Check className="w-3.5 h-3.5" />
             <span>

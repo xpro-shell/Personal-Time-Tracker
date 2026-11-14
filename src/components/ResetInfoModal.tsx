@@ -41,31 +41,31 @@ export const ResetInfoModal: React.FC<ResetInfoModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-[#141416] border border-zinc-800 rounded-xl p-6 shadow-2xl relative">
+      <div className="w-full max-w-lg bg-[#121215] border border-zinc-800 rounded-2xl p-6 shadow-2xl relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-zinc-400 hover:text-white"
+          className="absolute top-4 right-4 text-zinc-400 hover:text-white cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <div className="flex items-center gap-2 mb-2">
-          <CalendarClock className="w-5 h-5 text-amber-400" />
-          <h2 className="text-base font-semibold text-zinc-100">
+        <div className="flex items-center gap-2.5 mb-2">
+          <CalendarClock className="w-5 h-5 text-emerald-400" />
+          <h2 className="font-display text-lg font-semibold text-white tracking-tight">
             When & How Does the Tracker Reset?
           </h2>
         </div>
-        <p className="text-xs text-zinc-400 mb-4">
+        <p className="text-xs font-sans text-zinc-400 mb-4">
           Understanding the daily 24-hour cycle, midnight rollover, and deficit reconciliation.
         </p>
 
         {/* Live Countdown to Midnight */}
         <div className="p-3.5 bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-between mb-4">
           <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
+            <span className="label-scandi text-zinc-500 block">
               Automatic Midnight Reset In
             </span>
-            <div className="text-xl font-mono font-bold text-amber-400 tabular-nums">
+            <div className="text-xl font-mono font-bold text-emerald-400 tabular-nums mt-0.5">
               {timeUntilMidnight}
             </div>
           </div>
@@ -76,10 +76,10 @@ export const ResetInfoModal: React.FC<ResetInfoModalProps> = ({
         </div>
 
         {/* Explanatory Rules */}
-        <div className="space-y-3 text-xs mb-5">
-          <div className="p-3 rounded-lg bg-zinc-900/80 border border-zinc-800">
-            <div className="flex items-center gap-2 text-zinc-200 font-semibold mb-1">
-              <Clock className="w-3.5 h-3.5 text-zinc-400" />
+        <div className="space-y-3 text-xs mb-5 font-sans">
+          <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800">
+            <div className="flex items-center gap-2 text-zinc-100 font-semibold mb-1">
+              <Clock className="w-3.5 h-3.5 text-emerald-400" />
               <span>1. Midnight (00:00) Rollover</span>
             </div>
             <p className="text-zinc-400 leading-relaxed text-[11px]">
@@ -87,9 +87,9 @@ export const ResetInfoModal: React.FC<ResetInfoModalProps> = ({
             </p>
           </div>
 
-          <div className="p-3 rounded-lg bg-zinc-900/80 border border-zinc-800">
-            <div className="flex items-center gap-2 text-zinc-200 font-semibold mb-1">
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+          <div className="p-3 rounded-lg bg-zinc-900/70 border border-zinc-800">
+            <div className="flex items-center gap-2 text-zinc-100 font-semibold mb-1">
+              <ShieldAlert className="w-3.5 h-3.5 text-emerald-400" />
               <span>2. Manual Day Logout (OTD Reconciliation)</span>
             </div>
             <p className="text-zinc-400 leading-relaxed text-[11px]">
@@ -116,7 +116,7 @@ export const ResetInfoModal: React.FC<ResetInfoModalProps> = ({
               onClose();
               onTriggerManualClose();
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
           >
             <CheckCircle className="w-3.5 h-3.5" />
             <span>Reconcile & Close Day Now</span>

@@ -109,51 +109,51 @@ export const MotivationModal: React.FC<MotivationModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-[#121215] border border-amber-500/40 rounded-2xl p-6 sm:p-7 shadow-2xl shadow-amber-950/30 relative text-center animate-in zoom-in-95 duration-200"
+        className="w-full max-w-md bg-[#121215] border border-zinc-800 rounded-2xl p-6 sm:p-7 shadow-2xl relative text-center animate-in zoom-in-95 duration-200"
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-200 p-1 rounded-md transition-colors"
+          className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-200 p-1 rounded-md transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Top Icon Badge */}
-        <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-zinc-900 border border-amber-500/50 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-950/40">
+        <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400 shadow-lg">
           {type === 'login' ? <Sparkles className="w-6 h-6" /> : <Award className="w-6 h-6" />}
         </div>
 
         {/* Status Tag */}
-        <span className="text-[11px] font-mono uppercase tracking-[0.2em] font-semibold text-amber-400 block mb-1">
-          {type === 'login' ? '• DESK SESSION ACTIVATED •' : '• DAY LOGOUT RECONCILED •'}
+        <span className="label-scandi text-emerald-400 block mb-1">
+          {type === 'login' ? '• Desk Session Activated •' : '• Day Logout Reconciled •'}
         </span>
 
         {/* Bold Date & Time Display */}
         <div className="my-3.5 p-3.5 bg-zinc-950/90 border border-zinc-800 rounded-xl">
-          <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block mb-1">
+          <span className="label-scandi text-zinc-500 block mb-1">
             Official System Timestamp
           </span>
-          <div className="text-sm font-bold tracking-tight text-zinc-200 uppercase">
+          <div className="font-display text-base font-bold tracking-tight text-white">
             {dateFormatted}
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-mono mt-0.5 tabular-nums">
+          <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-emerald-400 font-mono mt-0.5 tabular-nums">
             {timeFormatted}
           </div>
         </div>
 
         {/* Motivational Quote */}
         <div className="my-4 px-2">
-          <blockquote className="text-xs sm:text-sm text-zinc-300 font-sans italic leading-relaxed">
+          <blockquote className="font-display text-sm sm:text-base text-zinc-200 italic leading-relaxed">
             "{activeQuote?.quote}"
           </blockquote>
-          <span className="block mt-2 text-[10px] font-mono uppercase tracking-wider text-amber-400/80">
+          <span className="block mt-2 label-scandi text-zinc-500">
             — {activeQuote?.author}
           </span>
         </div>
 
         <button
           onClick={onClose}
-          className="mt-2 w-full py-2.5 px-4 text-xs font-semibold text-zinc-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors cursor-pointer shadow-md font-mono uppercase tracking-wider"
+          className="mt-2 w-full py-2.5 px-4 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer shadow-md font-sans uppercase tracking-[0.14em]"
         >
           {type === 'login' ? 'Enter Focus Mode' : 'Complete Wrap-Up'}
         </button>

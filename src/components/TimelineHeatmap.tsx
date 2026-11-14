@@ -270,23 +270,23 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
   return (
     <div className="space-y-6">
       {/* View Switcher Header Bar */}
-      <div className="p-3 bg-[#141416] border border-zinc-800/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-zinc-400" />
-          <span className="font-semibold text-zinc-200 uppercase tracking-wider">
+      <div className="studio-card p-3.5 bg-gradient-to-r from-[#0d191d] via-[#121216] to-[#121216] border border-cyan-500/25 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <Activity className="w-4 h-4 text-cyan-400" />
+          <span className="label-scandi text-cyan-50">
             Desk Analytics & Visualization
           </span>
-          <span className="text-[11px] text-zinc-500">· {selectedDate}</span>
+          <span className="text-[11px] font-mono text-zinc-400">· {selectedDate}</span>
         </div>
 
         {/* 4 Presentation Modes: Timeline, Donut/Pie, Candlestick, Stacked */}
-        <div className="flex items-center gap-1.5 p-1 bg-zinc-950 border border-zinc-800 rounded-lg overflow-x-auto">
+        <div className="flex items-center gap-1.5 p-1 bg-zinc-950/90 border border-zinc-800 rounded-lg overflow-x-auto">
           <button
             onClick={() => setActiveView('timeline')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors cursor-pointer whitespace-nowrap ${
+            className={`interactive-press flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-all cursor-pointer whitespace-nowrap ${
               activeView === 'timeline'
-                ? 'bg-zinc-100 text-zinc-950 font-bold'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                ? 'bg-gradient-to-r from-cyan-400 to-teal-300 text-zinc-950 font-semibold shadow-[0_0_14px_-3px_rgba(34,211,238,0.6)]'
+                : 'text-zinc-400 hover:text-cyan-200 hover:bg-zinc-900'
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
@@ -295,10 +295,10 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
 
           <button
             onClick={() => setActiveView('pie')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors cursor-pointer whitespace-nowrap ${
+            className={`interactive-press flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-all cursor-pointer whitespace-nowrap ${
               activeView === 'pie'
-                ? 'bg-zinc-100 text-zinc-950 font-bold'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                ? 'bg-gradient-to-r from-cyan-400 to-teal-300 text-zinc-950 font-semibold shadow-[0_0_14px_-3px_rgba(34,211,238,0.6)]'
+                : 'text-zinc-400 hover:text-cyan-200 hover:bg-zinc-900'
             }`}
           >
             <PieIcon className="w-3.5 h-3.5" />
@@ -307,10 +307,10 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
 
           <button
             onClick={() => setActiveView('candles')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors cursor-pointer whitespace-nowrap ${
+            className={`interactive-press flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-all cursor-pointer whitespace-nowrap ${
               activeView === 'candles'
-                ? 'bg-zinc-100 text-zinc-950 font-bold'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                ? 'bg-gradient-to-r from-cyan-400 to-teal-300 text-zinc-950 font-semibold shadow-[0_0_14px_-3px_rgba(34,211,238,0.6)]'
+                : 'text-zinc-400 hover:text-cyan-200 hover:bg-zinc-900'
             }`}
           >
             <BarChart3 className="w-3.5 h-3.5" />
@@ -319,10 +319,10 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
 
           <button
             onClick={() => setActiveView('stacked')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors cursor-pointer whitespace-nowrap ${
+            className={`interactive-press flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-all cursor-pointer whitespace-nowrap ${
               activeView === 'stacked'
-                ? 'bg-zinc-100 text-zinc-950 font-bold'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                ? 'bg-gradient-to-r from-cyan-400 to-teal-300 text-zinc-950 font-semibold shadow-[0_0_14px_-3px_rgba(34,211,238,0.6)]'
+                : 'text-zinc-400 hover:text-cyan-200 hover:bg-zinc-900'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -335,11 +335,11 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
       {activeView === 'timeline' && (
         <div className="space-y-6 animate-in fade-in duration-150">
           {/* Daily Chronological Timeline with Gaps & Undo Actions */}
-          <div className="p-5 rounded-xl bg-[#141416] border border-zinc-800/80">
+          <div className="p-5 rounded-xl bg-[#121215] border border-zinc-800/80">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-zinc-400" />
-                <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-300">
+                <Clock className="w-4 h-4 text-emerald-400" />
+                <h3 className="font-display text-base font-semibold tracking-tight text-white">
                   Daily Timeline · {selectedDate}
                 </h3>
               </div>
@@ -542,9 +542,9 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
 
             {/* Flagged Timeline Gaps */}
             {gaps.length > 0 && (
-              <div className="p-3 mb-4 bg-amber-950/20 border border-amber-800/40 rounded-lg">
-                <div className="flex items-center gap-2 text-xs font-semibold text-amber-300 mb-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+              <div className="p-3 mb-4 bg-zinc-950/80 border border-zinc-700/80 rounded-lg">
+                <div className="flex items-center gap-2 text-xs font-semibold text-zinc-200 mb-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Flagged Gaps in Today's Log ({gaps.length})</span>
                 </div>
                 <div className="space-y-1">
@@ -554,7 +554,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
                       className="text-xs font-mono text-zinc-300 flex items-center justify-between"
                     >
                       <span>{gap.description}</span>
-                      <span className="text-amber-400">-{gap.durationMinutes}m gap</span>
+                      <span className="text-emerald-400">-{gap.durationMinutes}m gap</span>
                     </div>
                   ))}
                 </div>
@@ -563,7 +563,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
 
             {/* Today's Logged Sessions List with Undo/Delete buttons */}
             <div>
-              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block mb-2">
+              <span className="label-scandi text-zinc-400 block mb-2">
                 Today's Logged Blocks (Tap to Undo / Remove from Graph)
               </span>
 
@@ -629,11 +629,11 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
           </div>
 
           {/* Hourly Focus & Sleep Heatmap (Hour 0-23 by Weekday Mon-Sun) */}
-          <div className="p-5 rounded-xl bg-[#141416] border border-zinc-800/80">
+          <div className="p-5 rounded-xl bg-[#121215] border border-zinc-800/80">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-zinc-400" />
-                <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-300">
+                <Calendar className="w-4 h-4 text-emerald-400" />
+                <h3 className="font-display text-base font-semibold tracking-tight text-white">
                   Hourly Focus & Sleep Heatmap (Hour × Weekday)
                 </h3>
               </div>
@@ -731,15 +731,15 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
 
       {/* VIEW 2: 24-Hour Donut / Pie Distribution Chart */}
       {activeView === 'pie' && (
-        <div className="p-6 rounded-xl bg-[#141416] border border-zinc-800/80 space-y-6 animate-in fade-in duration-150">
+        <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800/80 space-y-6 animate-in fade-in duration-150">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <PieIcon className="w-4 h-4 text-zinc-400" />
-              <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-200">
+              <PieIcon className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-display text-base font-semibold tracking-tight text-white">
                 24-Hour Day Distribution Donut (100% of 24h)
               </h3>
             </div>
-            <span className="text-xs font-mono text-zinc-500">
+            <span className="label-scandi text-zinc-500">
               Total Day = 1440 mins (24h)
             </span>
           </div>
@@ -845,15 +845,15 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
 
       {/* VIEW 3: Session Candlestick Interval Chart */}
       {activeView === 'candles' && (
-        <div className="p-6 rounded-xl bg-[#141416] border border-zinc-800/80 space-y-6 animate-in fade-in duration-150">
+        <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800/80 space-y-6 animate-in fade-in duration-150">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-zinc-400" />
-              <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-200">
+              <BarChart3 className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-display text-base font-semibold tracking-tight text-white">
                 Session Candlestick Interval Chart (00:00 to 24:00)
               </h3>
             </div>
-            <span className="text-xs font-mono text-zinc-500">
+            <span className="label-scandi text-zinc-500">
               High/Low span with Open/Close minutes
             </span>
           </div>
@@ -962,15 +962,15 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
 
       {/* VIEW 4: Hourly Stacked 24-Hour Bar Chart */}
       {activeView === 'stacked' && (
-        <div className="p-6 rounded-xl bg-[#141416] border border-zinc-800/80 space-y-6 animate-in fade-in duration-150">
+        <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800/80 space-y-6 animate-in fade-in duration-150">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-zinc-400" />
-              <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-200">
+              <Layers className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-display text-base font-semibold tracking-tight text-white">
                 24-Hour Stacked Hourly Distribution (0 to 60 Minutes per Hour)
               </h3>
             </div>
-            <span className="text-xs font-mono text-zinc-500">
+            <span className="label-scandi text-zinc-500">
               Stack breakdown per hour
             </span>
           </div>
@@ -1067,15 +1067,15 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
       )}
 
       {/* 3. Hours per Topic Breakdown */}
-      <div className="p-5 rounded-xl bg-[#141416] border border-zinc-800/80">
+      <div className="p-5 rounded-xl bg-[#121215] border border-zinc-800/80">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-zinc-400" />
-            <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-300">
+            <BarChart3 className="w-4 h-4 text-emerald-400" />
+            <h3 className="font-display text-base font-semibold tracking-tight text-white">
               Hours per Topic & Activity
             </h3>
           </div>
-          <span className="text-xs font-mono text-zinc-500">
+          <span className="label-scandi text-zinc-500">
             {topicStats.length} topics tracked
           </span>
         </div>

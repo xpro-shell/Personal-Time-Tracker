@@ -114,11 +114,11 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
   return (
     <div className="space-y-6">
       {/* 1. File Upload Dropzone */}
-      <div className="p-6 rounded-xl bg-[#141416] border border-zinc-800/80">
+      <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800/80">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Upload className="w-4 h-4 text-zinc-400" />
-            <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-300">
+          <div className="flex items-center gap-2.5">
+            <Upload className="w-4 h-4 text-emerald-400" />
+            <h3 className="font-display text-base font-semibold tracking-tight text-white">
               WhatsApp Chat Importer (.zip or .txt)
             </h3>
           </div>
@@ -148,7 +148,7 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
             }
           }}
           className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-            dragActive ? 'border-zinc-300 bg-zinc-900/50' : 'border-zinc-800 bg-zinc-950/40'
+            dragActive ? 'border-emerald-400 bg-zinc-900/50' : 'border-zinc-800 bg-zinc-950/40'
           }`}
         >
           <FileText className="w-8 h-8 text-zinc-500 mx-auto mb-2" />
@@ -156,7 +156,7 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
             Drag and drop your exported WhatsApp chat (.txt or .zip) here
           </p>
           <span className="text-[11px] text-zinc-500 block mb-3">or choose file from disk</span>
-          <label className="inline-block px-4 py-2 text-xs font-medium text-zinc-900 bg-zinc-100 rounded-lg hover:bg-white transition-colors cursor-pointer">
+          <label className="inline-block px-4 py-2 text-xs font-semibold text-zinc-950 bg-emerald-400 rounded-lg hover:bg-emerald-300 transition-colors cursor-pointer">
             Browse File
             <input
               type="file"
@@ -180,7 +180,7 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
         {saveSuccess && (
           <div className="mt-4 p-3 bg-emerald-950/40 border border-emerald-800/60 rounded-lg flex items-center gap-2 text-xs text-emerald-300">
             <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Chat log successfully imported and synchronized to cloud database!</span>
+            <span>Chat log successfully imported and saved to your local offline ledger!</span>
           </div>
         )}
 
@@ -194,10 +194,10 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
 
       {/* 2. Live Import Preview (Assumption: Before saving, you see what was understood) */}
       {parseResult && (
-        <div className="p-6 rounded-xl bg-[#141416] border border-zinc-800/80">
+        <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800/80">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-zinc-100">
+              <h3 className="font-display text-base font-semibold text-white">
                 Import Preview & Verification
               </h3>
               <p className="text-xs text-zinc-400 mt-0.5">
@@ -211,7 +211,7 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
               <button
                 onClick={handleCommit}
                 disabled={isSaving}
-                className="px-4 py-2 text-xs font-semibold text-zinc-950 bg-zinc-100 rounded-lg hover:bg-white disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-zinc-950 bg-emerald-400 rounded-lg hover:bg-emerald-300 disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
               >
                 {isSaving ? 'Saving...' : 'Confirm & Save to Desk'}
               </button>
@@ -221,7 +221,7 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
             {/* Valid Sessions */}
             <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg">
-              <span className="text-[11px] font-mono text-zinc-400 block mb-1">
+              <span className="label-scandi text-zinc-400 block mb-1">
                 Valid Events Understood
               </span>
               <div className="text-2xl font-bold font-mono text-zinc-100 tabular-nums">
@@ -231,10 +231,10 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
 
             {/* Review List (Numbers, Amounts, Non-time notes) */}
             <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg">
-              <span className="text-[11px] font-mono text-zinc-400 block mb-1">
+              <span className="label-scandi text-zinc-400 block mb-1">
                 Review List (Numbers & Amounts)
               </span>
-              <div className="text-2xl font-bold font-mono text-amber-400 tabular-nums">
+              <div className="text-2xl font-bold font-mono text-emerald-400 tabular-nums">
                 {parseResult.reviewItems.length}
               </div>
               <span className="text-[10px] text-zinc-500">Never guessed; sent to review queue</span>
@@ -242,7 +242,7 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
 
             {/* To Fill Gaps */}
             <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg">
-              <span className="text-[11px] font-mono text-zinc-400 block mb-1">
+              <span className="label-scandi text-zinc-400 block mb-1">
                 "To Fill" List (Missing Off/On)
               </span>
               <div className="text-2xl font-bold font-mono text-zinc-300 tabular-nums">
@@ -288,12 +288,12 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
       )}
 
       {/* 3. Editable Word List Manager */}
-      <div className="p-6 rounded-xl bg-[#141416] border border-zinc-800/80">
+      <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800/80">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-300">
+          <h3 className="font-display text-base font-semibold tracking-tight text-white">
             Word List & Messy Phrasing Rules
           </h3>
-          <span className="text-xs font-mono text-zinc-500">{wordRules.length} rules active</span>
+          <span className="label-scandi text-zinc-500">{wordRules.length} rules active</span>
         </div>
         <p className="text-xs text-zinc-400 mb-4">
           Customize how messy or shortened terms like "OTD", "bon", "Luck off", or "out" are translated into system events.
@@ -306,7 +306,7 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
             value={newTrigger}
             onChange={(e) => setNewTrigger(e.target.value)}
             placeholder='Trigger word (e.g. "Luck off")'
-            className="px-3 py-2 text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+            className="px-3 py-2 text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-400"
           />
 
           <select
@@ -314,7 +314,7 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
             onChange={(e) =>
               setNewCategory(e.target.value as 'study' | 'break' | 'music' | 'content' | 'day_boundary' | 'desk')
             }
-            className="px-3 py-2 text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 focus:outline-none focus:border-zinc-500"
+            className="px-3 py-2 text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 focus:outline-none focus:border-emerald-400"
           >
             <option value="desk">Desk Status</option>
             <option value="break">Break Bank</option>
@@ -328,12 +328,12 @@ export const WhatsAppImporter: React.FC<WhatsAppImporterProps> = ({
             value={newAction}
             onChange={(e) => setNewAction(e.target.value)}
             placeholder="Mapped action (e.g. desk_off)"
-            className="px-3 py-2 text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+            className="px-3 py-2 text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-400"
           />
 
           <button
             type="submit"
-            className="flex items-center justify-center gap-1 px-3.5 py-2 text-xs font-semibold text-zinc-900 bg-zinc-100 rounded-lg hover:bg-white transition-colors cursor-pointer"
+            className="flex items-center justify-center gap-1 px-3.5 py-2 text-xs font-semibold text-zinc-950 bg-emerald-400 rounded-lg hover:bg-emerald-300 transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Rule</span>

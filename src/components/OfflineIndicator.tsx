@@ -38,10 +38,10 @@ export const OfflineIndicator: React.FC = () => {
 
   if (!isOnline) {
     return (
-      <div className="w-full bg-amber-950/90 border-b border-amber-800/80 px-4 py-2 text-xs font-mono text-amber-200 flex items-center justify-center gap-2 animate-in fade-in duration-200">
-        <WifiOff className="w-4 h-4 text-amber-400 shrink-0" />
+      <div className="w-full bg-[#121215] border-b border-zinc-800 px-4 py-2 text-xs text-zinc-200 flex items-center justify-center gap-2 animate-in fade-in duration-200">
+        <WifiOff className="w-4 h-4 text-emerald-400 shrink-0" />
         <span>
-          <strong>Offline Desktop Mode:</strong> Zero internet required. All timers, habits, achievements, and quotas save directly to local IndexedDB.
+          <strong className="text-white">Offline Desktop Mode:</strong> Zero internet required. All timers, habits, achievements, and quotas save directly to local IndexedDB.
         </span>
       </div>
     );

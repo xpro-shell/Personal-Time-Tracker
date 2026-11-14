@@ -82,53 +82,53 @@ export const InsightsTips: React.FC<InsightsTipsProps> = ({ entries }) => {
   ];
 
   return (
-    <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0f1715] via-[#121516] to-[#121216] border border-emerald-500/25 space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-emerald-950/70">
+    <div className="studio-card p-6 rounded-2xl bg-gradient-to-br from-[#14131e] via-[#121215] to-[#0d1915] border border-zinc-800/80 hover:border-zinc-700 space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30">
+          <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
             <Sparkles className="w-4 h-4 text-emerald-400" />
           </div>
           <div>
-            <h3 className="font-display text-sm font-bold tracking-tight text-emerald-100">
+            <h3 className="font-display text-lg font-semibold tracking-tight text-white">
               Insights & Focus Science
             </h3>
-            <span className="text-[11px] font-mono text-zinc-500">
+            <span className="label-scandi text-zinc-400 block mt-0.5">
               Tap any principle below to commit it to today's focus protocol
             </span>
           </div>
         </div>
         {pinnedPrinciples.length > 0 && (
-          <span className="text-xs font-mono text-emerald-400 font-semibold">
-            {pinnedPrinciples.length} protocol{pinnedPrinciples.length > 1 ? 's' : ''} active
+          <span className="text-xs font-mono text-emerald-300 font-semibold">
+            {pinnedPrinciples.length} protocol{pinnedPrinciples.length > 1 ? 's' : ''} committed
           </span>
         )}
       </div>
 
       {/* Personal Data-Driven Tip */}
-      <div className="p-4 bg-zinc-950/70 border border-emerald-500/20 rounded-xl">
+      <div className="p-4 bg-gradient-to-r from-emerald-950/35 via-zinc-950/80 to-teal-950/25 border border-emerald-500/25 rounded-xl">
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-emerald-400" />
-            <h4 className="font-display text-xs font-bold text-zinc-100">
+            <h4 className="font-display text-sm font-semibold text-white">
               Personal Log Insight · Peak Focus Window
             </h4>
           </div>
-          <span className="text-[10px] font-mono text-emerald-300">
-            Derived from your logs
+          <span className="label-scandi text-emerald-400">
+            Derived from logs
           </span>
         </div>
-        <p className="text-xs font-mono text-zinc-300 leading-relaxed">
+        <p className="text-xs font-sans text-zinc-300 leading-relaxed">
           {personalPattern.message}
         </p>
         {personalPattern.hasEnoughData && (
-          <div className="mt-2 text-xs font-mono text-emerald-400 font-semibold">
+          <div className="mt-2 text-xs font-mono text-emerald-300 font-semibold">
             Primary Peak Window: {personalPattern.peakHourRange}
           </div>
         )}
       </div>
 
       {/* Interactive Principle Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         {generalScienceTips.map((tip) => {
           const isPinned = pinnedPrinciples.includes(tip.title);
           return (
@@ -136,23 +136,23 @@ export const InsightsTips: React.FC<InsightsTipsProps> = ({ entries }) => {
               key={tip.title}
               type="button"
               onClick={() => togglePrinciple(tip.title)}
-              className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col justify-between ${
+              className={`interactive-press text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col justify-between ${
                 isPinned
-                  ? 'bg-emerald-950/40 border-emerald-400/70 shadow-sm'
-                  : 'bg-zinc-950/50 border-zinc-800/90 hover:border-emerald-500/40 hover:bg-zinc-900/40'
+                  ? 'bg-gradient-to-br from-emerald-950/65 via-[#10201a] to-teal-950/40 border-emerald-400/75 shadow-[0_0_24px_-6px_rgba(16,185,129,0.4)]'
+                  : 'bg-zinc-950/70 border-zinc-800/90 hover:border-emerald-500/40 hover:bg-zinc-900/60'
               }`}
             >
               <div>
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <h5 className="font-display text-sm font-semibold text-zinc-100 flex items-center gap-1.5">
-                    {isPinned && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                  <h5 className="font-display text-base font-semibold text-white flex items-center gap-1.5">
+                    {isPinned && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
                     <span>{tip.title}</span>
                   </h5>
-                  <span className="text-[10px] font-mono text-emerald-400/80 shrink-0">
+                  <span className={`label-scandi shrink-0 ${isPinned ? 'text-emerald-300' : 'text-emerald-400/80'}`}>
                     {tip.tag}
                   </span>
                 </div>
-                <p className="text-xs text-zinc-400 leading-relaxed">{tip.body}</p>
+                <p className="text-xs font-sans text-zinc-300/90 leading-relaxed">{tip.body}</p>
               </div>
             </button>
           );

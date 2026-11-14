@@ -45,24 +45,24 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-[#09090b]/95 backdrop-blur-md border-b border-zinc-800/80">
       <div className="flex items-center justify-between gap-3 lg:gap-6 px-4 sm:px-6 py-3">
-        {/* Zone 1: Brand title wordmark */}
+        {/* Zone 1: Editorial Luxury Brand Wordmark */}
         <div className="flex items-center gap-2.5 shrink-0">
-          <span className="w-2.5 h-2.5 bg-amber-400 rounded-sm" aria-hidden="true" />
+          <span className="w-2 h-2 bg-emerald-400 rounded-xs" aria-hidden="true" />
           <button
             type="button"
             onClick={() => {
               onSelectTab('desk');
               onReplayIntro?.();
             }}
-            className="font-display text-sm sm:text-base font-bold tracking-tight text-zinc-100 hover:text-emerald-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer text-left"
+            className="font-display text-base sm:text-lg font-semibold tracking-tight text-zinc-100 hover:text-emerald-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer text-left"
             title="Personal Time Tracker · Click to replay intro"
           >
             Personal Time Tracker
           </button>
         </div>
 
-        {/* Zone 2: Desktop Navigation Links (with Achievements right next to Timeline & Heatmap) */}
-        <nav className="hidden lg:flex items-center gap-5 text-xs font-medium text-zinc-400">
+        {/* Zone 2: Desktop Scandinavian Minimal Navigation Links */}
+        <nav className="hidden lg:flex items-center gap-6 text-[11px] font-sans uppercase tracking-[0.12em] font-medium text-zinc-400">
           {navLinks.map((link) => (
             <button
               key={link.id}
@@ -70,9 +70,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               onClick={() => onSelectTab(link.id)}
               className={`transition-colors whitespace-nowrap shrink-0 py-1 border-b cursor-pointer ${
                 currentTab === link.id
-                  ? link.id === 'achievements'
-                    ? 'text-amber-300 border-amber-400 font-semibold'
-                    : 'text-emerald-300 border-emerald-400 font-semibold'
+                  ? 'text-white border-emerald-400 font-semibold'
                   : 'border-transparent hover:text-zinc-200'
               }`}
             >
@@ -87,7 +85,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             <button
               type="button"
               onClick={onOpenResetInfo}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-800 hover:border-emerald-500/50 rounded-lg transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-zinc-300 hover:text-white bg-[#121215] border border-zinc-800 hover:border-emerald-500/50 rounded-lg transition-colors cursor-pointer"
               title="When does tracker reset? Midnight 00:00 & Day Logout info"
             >
               <Clock className="w-3.5 h-3.5 text-emerald-400" />
@@ -100,17 +98,17 @@ export const TopBar: React.FC<TopBarProps> = ({
             <button
               type="button"
               onClick={onReplayIntro}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-zinc-300 hover:text-emerald-200 bg-zinc-900 border border-zinc-800 hover:border-emerald-500/50 rounded-lg transition-colors cursor-pointer"
-              title="Play intro animation"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-zinc-300 hover:text-white bg-[#121215] border border-zinc-800 hover:border-emerald-500/50 rounded-lg transition-colors cursor-pointer"
+              title="Play intro animation & guided tour"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
               <span className="hidden sm:inline">Intro</span>
             </button>
           )}
 
           <PWAInstallButton />
 
-          {/* Local Offline Profile Summary (No Google Login) */}
+          {/* Local Offline Profile Summary */}
           <div className="flex items-center gap-2 pl-2 border-l border-zinc-800/80 text-xs font-mono tabular-nums text-zinc-400">
             <span title="Offline Local Vault" className="hidden sm:inline-flex items-center shrink-0">
               <HardDrive className="w-3.5 h-3.5 text-emerald-400" />
@@ -127,7 +125,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                   }}
                   autoFocus
                   maxLength={24}
-                  className="w-24 px-1.5 py-0.5 text-xs bg-zinc-950 border border-amber-400 rounded text-zinc-100 focus:outline-none"
+                  className="w-24 px-1.5 py-0.5 text-xs bg-zinc-950 border border-emerald-400 rounded text-zinc-100 focus:outline-none"
                 />
                 <button
                   type="button"
@@ -145,7 +143,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                   setDraftName(profile.displayName);
                   setIsEditingName(true);
                 }}
-                className="hidden sm:flex items-center gap-1 text-zinc-200 hover:text-amber-300 font-medium cursor-pointer"
+                className="hidden sm:flex items-center gap-1 text-zinc-200 hover:text-emerald-300 font-medium cursor-pointer"
                 title="Click to rename local profile"
               >
                 <span>{profile.displayName}</span>
@@ -153,15 +151,15 @@ export const TopBar: React.FC<TopBarProps> = ({
               </button>
             )}
             <span aria-hidden="true" className="hidden sm:inline text-zinc-700">·</span>
-            <span className="text-amber-400 font-semibold">Lv {profile.level}</span>
+            <span className="text-emerald-400 font-semibold">Lv {profile.level}</span>
             <span aria-hidden="true" className="hidden md:inline text-zinc-700">·</span>
             <span className="hidden md:inline text-zinc-300">{profile.totalXp} XP</span>
           </div>
         </div>
       </div>
 
-      {/* Compact Mobile & Tablet Tab Strip (keeps height well under 15% cap) */}
-      <nav className="flex lg:hidden items-center gap-3 px-4 py-1.5 border-t border-zinc-800/60 overflow-x-auto scrollbar-none text-[11px] font-medium text-zinc-400">
+      {/* Compact Mobile & Tablet Tab Strip */}
+      <nav className="flex lg:hidden items-center gap-4 px-4 py-2 border-t border-zinc-800/60 overflow-x-auto scrollbar-none text-[10px] font-sans uppercase tracking-[0.12em] font-medium text-zinc-400">
         {navLinks.map((link) => (
           <button
             key={link.id}
@@ -169,9 +167,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             onClick={() => onSelectTab(link.id)}
             className={`whitespace-nowrap shrink-0 py-0.5 border-b transition-colors cursor-pointer ${
               currentTab === link.id
-                ? link.id === 'achievements'
-                  ? 'text-amber-300 border-amber-400 font-semibold'
-                  : 'text-zinc-100 border-zinc-100 font-semibold'
+                ? 'text-white border-emerald-400 font-semibold'
                 : 'border-transparent hover:text-zinc-200'
             }`}
           >
