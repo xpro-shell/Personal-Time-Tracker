@@ -63,8 +63,10 @@ export default defineConfig(() => {
             }
           ]
         },
+        // Do not generate dev service-worker files in a tracked directory.
+        // Production builds still generate the PWA service worker.
         devOptions: {
-          enabled: true
+          enabled: false
         }
       })
     ],
