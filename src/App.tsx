@@ -8,8 +8,10 @@ import { DateNavigator, formatLocalYMD } from './components/DateNavigator';
 import { DailyCompletionStatus, DayCloseModal } from './components/DayCloseModal';
 import { DeskQuickLogger } from './components/DeskQuickLogger';
 import { HabitCard } from './components/HabitCard';
+import { HourlyCheckInModal, PendingHourPrompt } from './components/HourlyCheckInModal';
 import { InsightsTips } from './components/InsightsTips';
 import { IntroAnimation } from './components/IntroAnimation';
+import { LifeShortcodeDrawer } from './components/LifeShortcodeDrawer';
 import { MotivationModal } from './components/MotivationModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { PastDayAuditBanner, UnreconciledPastDay } from './components/PastDayAuditBanner';
@@ -17,14 +19,13 @@ import { ResetInfoModal } from './components/ResetInfoModal';
 import { ReviewQueue } from './components/ReviewQueue';
 import { RobotTutorialModal } from './components/RobotTutorialModal';
 import { SleepTrackerCard } from './components/SleepTrackerCard';
+import { StudioDesignPicker, THEME_DEFAULT_TEXT_STYLE } from './components/StudioDesignPicker';
 import { StudyQuotaCard } from './components/StudyQuotaCard';
 import { TimelineHeatmap } from './components/TimelineHeatmap';
 import { TopBar } from './components/TopBar';
 import { VaultOfLostTime } from './components/VaultOfLostTime';
-import { WhatsAppImporter } from './components/WhatsAppImporter';
 import { useLocalProfile } from './context/LocalProfileContext';
 import { playDeskClick, playEarnedChime } from './lib/audioAlert';
-import { INITIAL_WORD_RULES, WordRule } from './lib/defaultWordList';
 import { readLocalAsync, readLocalSync, STORAGE_KEYS, writeLocalData } from './lib/localDb';
 import {
   AchievementItem,
@@ -32,8 +33,9 @@ import {
   CustomHabit,
   EntryType,
   GapItem,
-  ParsedWhatsAppResult,
-  ReviewItem,
+  HourlyReviewItem,
+  StudioTextStyleId,
+  StudioThemeId,
   TickerSettings,
   TimeEntry,
   VaultEntry,
@@ -74,11 +76,21 @@ const DEFAULT_TUTORIAL_PREFS: TutorialPrefs = {
   claimedBonus: false,
 };
 
+interface HourlyReminderPrefs {
+  enabled: boolean;
+  autoQueueBlankHours: boolean;
+}
+
+const DEFAULT_HOURLY_REMINDER_PREFS: HourlyReminderPrefs = {
+  enabled: true,
+  autoQueueBlankHours: true,
+};
+
 export default function App() {
   const { profile, addXp } = useLocalProfile();
 
   const [currentTab, setCurrentTab] = useState<
-    'desk' | 'timeline' | 'achievements' | 'importer' | 'vault' | 'review'
+    'desk' | 'timeline' | 'achievements' | 'vault' | 'review'
   >('desk');
 
   const [selectedDate, setSelectedDate] = useState<string>(() => formatLocalYMD(new Date()));
@@ -112,14 +124,19 @@ export default function App() {
   const [vaultEntries, setVaultEntries] = useState<VaultEntry[]>(() =>
     readLocalSync<VaultEntry[]>(STORAGE_KEYS.VAULT_ENTRIES, [])
   );
-  const [reviewItems, setReviewItems] = useState<ReviewItem[]>(() =>
-    readLocalSync<ReviewItem[]>(STORAGE_KEYS.REVIEW_ITEMS, [])
+  const [hourlyReviewQueue, setHourlyReviewQueue] = useState<HourlyReviewItem[]>(() =>
+    readLocalSync<HourlyReviewItem[]>(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, [])
   );
+  const [hourlyReminderPrefs, setHourlyReminderPrefs] = useState<HourlyReminderPrefs>(() =>
+    readLocalSync<HourlyReminderPrefs>(
+      STORAGE_KEYS.HOURLY_REMINDER_PREFS,
+      DEFAULT_HOURLY_REMINDER_PREFS
+    )
+  );
+  const [pendingHourPrompt, setPendingHourPrompt] = useState<PendingHourPrompt | null>(null);
+  const [secondsUntilNextReminder, setSecondsUntilNextReminder] = useState<number>(3600);
   const [toFillGaps, setToFillGaps] = useState<GapItem[]>(() =>
     readLocalSync<GapItem[]>(STORAGE_KEYS.TO_FILL_GAPS, [])
-  );
-  const [wordRules, setWordRules] = useState<WordRule[]>(() =>
-    readLocalSync<WordRule[]>(STORAGE_KEYS.WORD_RULES, INITIAL_WORD_RULES)
   );
   const [habits, setHabits] = useState<CustomHabit[]>(() =>
     readLocalSync<CustomHabit[]>(STORAGE_KEYS.CUSTOM_HABITS, DEFAULT_HABITS)
@@ -157,11 +174,18 @@ export default function App() {
     timestamp: new Date().toISOString(),
   });
 
-  // Interactive Studio Atmosphere Theme ('emerald' | 'gold' | 'violet' | 'cyan')
-  const [studioTheme, setStudioTheme] = useState<'emerald' | 'gold' | 'violet' | 'cyan'>(() => {
+  // Interactive Studio Atmosphere & Design Personality Theme
+  const [studioTheme, setStudioTheme] = useState<StudioThemeId>(() => {
     try {
       const saved = localStorage.getItem('ptt_studio_theme_v1');
-      if (saved === 'emerald' || saved === 'gold' || saved === 'violet' || saved === 'cyan') {
+      if (
+        saved === 'emerald' ||
+        saved === 'gold' ||
+        saved === 'violet' ||
+        saved === 'cyan' ||
+        saved === 'rose' ||
+        saved === 'solar'
+      ) {
         return saved;
       }
     } catch {
@@ -170,7 +194,27 @@ export default function App() {
     return 'emerald';
   });
 
-  const handleSelectStudioTheme = (theme: 'emerald' | 'gold' | 'violet' | 'cyan') => {
+  const [studioTextStyle, setStudioTextStyle] = useState<StudioTextStyleId>(() => {
+    try {
+      const saved = localStorage.getItem('ptt_studio_text_style_v1');
+      if (
+        saved === 'auto' ||
+        saved === 'minimal' ||
+        saved === 'luxury' ||
+        saved === 'aurora' ||
+        saved === 'blueprint' ||
+        saved === 'zen' ||
+        saved === 'neopop'
+      ) {
+        return saved;
+      }
+    } catch {
+      // ignore storage failure
+    }
+    return 'auto';
+  });
+
+  const handleSelectStudioTheme = (theme: StudioThemeId) => {
     playDeskClick();
     setStudioTheme(theme);
     try {
@@ -180,6 +224,19 @@ export default function App() {
     }
   };
 
+  const handleSelectStudioTextStyle = (style: StudioTextStyleId) => {
+    playDeskClick();
+    setStudioTextStyle(style);
+    try {
+      localStorage.setItem('ptt_studio_text_style_v1', style);
+    } catch {
+      // ignore storage failure
+    }
+  };
+
+  const effectiveStudioFont =
+    studioTextStyle === 'auto' ? THEME_DEFAULT_TEXT_STYLE[studioTheme] : studioTextStyle;
+
   const hasHydratedIdb = useRef(false);
 
   // Hydrate cleanly from IndexedDB on initial mount (IndexedDB can retain data even if LocalStorage is trimmed)
@@ -188,9 +245,12 @@ export default function App() {
     Promise.all([
       readLocalAsync<TimeEntry[]>(STORAGE_KEYS.TIME_ENTRIES, []),
       readLocalAsync<VaultEntry[]>(STORAGE_KEYS.VAULT_ENTRIES, []),
-      readLocalAsync<ReviewItem[]>(STORAGE_KEYS.REVIEW_ITEMS, []),
+      readLocalAsync<HourlyReviewItem[]>(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, []),
+      readLocalAsync<HourlyReminderPrefs>(
+        STORAGE_KEYS.HOURLY_REMINDER_PREFS,
+        DEFAULT_HOURLY_REMINDER_PREFS
+      ),
       readLocalAsync<GapItem[]>(STORAGE_KEYS.TO_FILL_GAPS, []),
-      readLocalAsync<WordRule[]>(STORAGE_KEYS.WORD_RULES, INITIAL_WORD_RULES),
       readLocalAsync<CustomHabit[]>(STORAGE_KEYS.CUSTOM_HABITS, DEFAULT_HABITS),
       readLocalAsync<AchievementItem[]>(STORAGE_KEYS.ACHIEVEMENTS, []),
       readLocalAsync<TickerSettings>(STORAGE_KEYS.TICKER_SETTINGS, DEFAULT_TICKER_SETTINGS),
@@ -200,9 +260,9 @@ export default function App() {
       ([
         loadedEntries,
         loadedVault,
-        loadedReview,
+        loadedHourlyQueue,
+        loadedHourlyPrefs,
         loadedGaps,
-        loadedRules,
         loadedHabits,
         loadedAchievements,
         loadedTicker,
@@ -212,9 +272,9 @@ export default function App() {
         if (!active) return;
         if (loadedEntries.length > 0) setEntries(loadedEntries);
         if (loadedVault.length > 0) setVaultEntries(loadedVault);
-        if (loadedReview.length > 0) setReviewItems(loadedReview);
+        if (loadedHourlyQueue.length > 0) setHourlyReviewQueue(loadedHourlyQueue);
+        if (loadedHourlyPrefs) setHourlyReminderPrefs(loadedHourlyPrefs);
         if (loadedGaps.length > 0) setToFillGaps(loadedGaps);
-        if (loadedRules.length > 0) setWordRules(loadedRules);
         if (loadedHabits.length > 0) setHabits(loadedHabits);
         if (loadedAchievements.length > 0) setAchievements(loadedAchievements);
         if (loadedTicker) setTickerSettings({ ...DEFAULT_TICKER_SETTINGS, ...loadedTicker });
@@ -263,18 +323,18 @@ export default function App() {
 
   useEffect(() => {
     if (!hasHydratedIdb.current) return;
-    writeLocalData(STORAGE_KEYS.REVIEW_ITEMS, reviewItems);
-  }, [reviewItems]);
+    writeLocalData(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, hourlyReviewQueue);
+  }, [hourlyReviewQueue]);
+
+  useEffect(() => {
+    if (!hasHydratedIdb.current) return;
+    writeLocalData(STORAGE_KEYS.HOURLY_REMINDER_PREFS, hourlyReminderPrefs);
+  }, [hourlyReminderPrefs]);
 
   useEffect(() => {
     if (!hasHydratedIdb.current) return;
     writeLocalData(STORAGE_KEYS.TO_FILL_GAPS, toFillGaps);
   }, [toFillGaps]);
-
-  useEffect(() => {
-    if (!hasHydratedIdb.current) return;
-    writeLocalData(STORAGE_KEYS.WORD_RULES, wordRules);
-  }, [wordRules]);
 
   useEffect(() => {
     if (!hasHydratedIdb.current) return;
@@ -351,14 +411,131 @@ export default function App() {
   const studyDeficitMinutes = Math.max(0, effectiveStudyTarget - studyMinutesToday);
   const breakSurplusMinutes = Math.max(0, BASE_BREAK_QUOTA - breakMinutesToday);
 
-  // Duplicate hash guard for WhatsApp Importer
-  const existingHashes = useMemo(() => {
-    const s = new Set<string>();
+  // Calculate tracked minutes within any specific 1-hour slot [dateYmd, hour]
+  const getTrackedMinutesForHour = (dateYmd: string, hour: number): number => {
+    const slotStart = new Date(`${dateYmd}T${hour.toString().padStart(2, '0')}:00:00`).getTime();
+    const slotEnd = slotStart + 3600 * 1000;
+    let totalMins = 0;
+
     entries.forEach((e) => {
-      if (e.sourceHash) s.add(e.sourceHash);
+      if (e.type === 'day_boundary') return;
+      const startMs = new Date(e.startTime).getTime();
+      if (isNaN(startMs)) return;
+      const dur =
+        e.durationMinutes ||
+        (e.type === 'music' ? 180 : e.type === 'sleep' ? 480 : 0);
+      const endMs = e.endTime ? new Date(e.endTime).getTime() : startMs + dur * 60000;
+      const overlap = Math.min(endMs, slotEnd) - Math.max(startMs, slotStart);
+      if (overlap > 0) totalMins += overlap / 60000;
     });
-    return s;
-  }, [entries]);
+
+    if (activeSession) {
+      const aStart = new Date(activeSession.startTime).getTime();
+      const overlap = Math.min(Date.now(), slotEnd) - Math.max(aStart, slotStart);
+      if (overlap > 0) totalMins += overlap / 60000;
+    }
+
+    return Math.min(60, Math.round(totalMins));
+  };
+
+  // Every 1 Hour Reminder Loop & Automatic Uncounted-Hour Queueing
+  const nextReminderAtRef = useRef<number>(Date.now() + 3600 * 1000);
+  const checkedClockHourRef = useRef<string>(
+    `${formatLocalYMD(new Date())}_${new Date().getHours()}`
+  );
+
+  useEffect(() => {
+    if (!isDeskLoggedIn) return;
+
+    const tick = window.setInterval(() => {
+      const now = new Date();
+      const nowMs = now.getTime();
+      const secsLeft = Math.max(0, Math.ceil((nextReminderAtRef.current - nowMs) / 1000));
+      setSecondsUntilNextReminder(secsLeft);
+
+      // 1. Auto-detect when a clock hour finishes with blank/uncounted time while logged in
+      const currentKey = `${formatLocalYMD(now)}_${now.getHours()}`;
+      if (currentKey !== checkedClockHourRef.current) {
+        const prevHourDate = new Date(nowMs - 3600 * 1000);
+        const prevYmd = formatLocalYMD(prevHourDate);
+        const prevH = prevHourDate.getHours();
+        const prevId = `hour_${prevYmd}_${prevH}`;
+        checkedClockHourRef.current = currentKey;
+
+        if (hourlyReminderPrefs.autoQueueBlankHours) {
+          const tracked = getTrackedMinutesForHour(prevYmd, prevH);
+          if (tracked < 15) {
+            const uncounted = Math.max(15, 60 - tracked);
+            const hStart = `${prevH.toString().padStart(2, '0')}:00`;
+            const hEnd = `${((prevH + 1) % 24).toString().padStart(2, '0')}:00`;
+            const startIso = new Date(`${prevYmd}T${hStart}:00`).toISOString();
+            const endIso = new Date(new Date(startIso).getTime() + 3600 * 1000).toISOString();
+
+            setHourlyReviewQueue((prev) => {
+              if (prev.some((q) => q.id === prevId)) return prev;
+              return [
+                {
+                  id: prevId,
+                  date: prevYmd,
+                  hour: prevH,
+                  hourLabel: `${hStart} – ${hEnd}`,
+                  startTime: startIso,
+                  endTime: endIso,
+                  uncountedMinutes: uncounted,
+                  source: 'hourly_auto',
+                  createdAt: new Date().toISOString(),
+                },
+                ...prev,
+              ];
+            });
+          }
+        }
+      }
+
+      // 2. Every 60-minute desk reminder asks "What did you do this hour?"
+      if (nowMs >= nextReminderAtRef.current) {
+        nextReminderAtRef.current = nowMs + 3600 * 1000;
+        setSecondsUntilNextReminder(3600);
+
+        const endD = new Date(nowMs);
+        const startD = new Date(nowMs - 3600 * 1000);
+        const slotYmd = formatLocalYMD(startD);
+        const slotHour = startD.getHours();
+        const tracked = getTrackedMinutesForHour(slotYmd, slotHour);
+
+        if (tracked < 45) {
+          const fmt = (d: Date) =>
+            `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+          const promptObj: PendingHourPrompt = {
+            id: `hour_prompt_${slotYmd}_${slotHour}_${nowMs}`,
+            date: slotYmd,
+            hour: slotHour,
+            hourLabel: `${fmt(startD)} – ${fmt(endD)}`,
+            startTime: startD.toISOString(),
+            endTime: endD.toISOString(),
+            uncountedMinutes: Math.max(15, 60 - tracked),
+          };
+
+          if (hourlyReminderPrefs.enabled) {
+            playEarnedChime();
+            setPendingHourPrompt(promptObj);
+          } else if (hourlyReminderPrefs.autoQueueBlankHours) {
+            setHourlyReviewQueue((prev) => [
+              {
+                ...promptObj,
+                source: 'hourly_auto',
+                createdAt: new Date().toISOString(),
+              },
+              ...prev,
+            ]);
+          }
+        }
+      }
+    }, 1000);
+
+    return () => window.clearInterval(tick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDeskLoggedIn, hourlyReminderPrefs, entries, activeSession]);
 
   // Check if Riyaz is ticked on selectedDate
   const todayRiyazEntry = useMemo(() => {
@@ -513,10 +690,39 @@ export default function App() {
     }
     setActiveSession({
       type,
-      topic: topic || (type === 'study' ? 'General Study' : 'Break'),
+      topic: topic || (type === 'study' ? 'General Study' : type === 'life' ? 'Life Activity' : 'Break'),
       startTime: new Date().toISOString(),
     });
     setActiveSeconds(0);
+  };
+
+  // Retroactively log non-study Life / Leisure activity ("I already watched TV for 1.5h")
+  const handleLogLifeActivity = (options: { topic: string; durationMinutes: number }) => {
+    const mins = Math.max(1, options.durationMinutes);
+    const now = new Date();
+    const isTodaySelected = selectedDate === formatLocalYMD(now);
+
+    const endD = isTodaySelected ? now : new Date(`${selectedDate}T20:00:00`);
+    const startD = new Date(endD.getTime() - mins * 60000);
+
+    const newEntry: TimeEntry = {
+      id: `local_life_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      userId: 'local_desktop_user',
+      type: 'life',
+      action: 'stop',
+      topic: options.topic,
+      startTime: startD.toISOString(),
+      endTime: endD.toISOString(),
+      durationMinutes: mins,
+      source: 'shortcode',
+      createdAt: now.toISOString(),
+    };
+
+    setEntries((prev) =>
+      [...prev, newEntry].sort(
+        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      )
+    );
   };
 
   // Stop Session
@@ -869,64 +1075,97 @@ export default function App() {
     setAchievements((prev) => prev.filter((a) => a.id !== id));
   };
 
-  // WhatsApp Import Commit (Local IndexedDB / LocalStorage)
-  const handleCommitWhatsApp = async (result: ParsedWhatsAppResult): Promise<void> => {
-    const nowIso = new Date().toISOString();
+  // Trigger instant 1-hour check-in prompt (for testing or logging the past hour now)
+  const handleTriggerHourlyPromptNow = () => {
+    const now = new Date();
+    const startD = new Date(now.getTime() - 3600 * 1000);
+    const fmt = (d: Date) =>
+      `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    const slotYmd = formatLocalYMD(startD);
+    const slotHour = startD.getHours();
+    const tracked = getTrackedMinutesForHour(slotYmd, slotHour);
 
-    const importedEntries: TimeEntry[] = result.validEntries.map((item, idx) => ({
-      id: `wa_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
-      userId: 'local_desktop_user',
-      ...item,
-      createdAt: nowIso,
-    }));
+    nextReminderAtRef.current = Date.now() + 3600 * 1000;
+    setSecondsUntilNextReminder(3600);
 
-    setEntries((prev) =>
-      [...prev, ...importedEntries].sort(
-        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-      )
-    );
-
-    const importedReviews: ReviewItem[] = result.reviewItems.map((r, idx) => ({
-      id: `wa_rev_${Date.now()}_${idx}`,
-      userId: 'local_desktop_user',
-      rawMessage: r.rawMessage,
-      timestamp: r.timestamp,
-      reason: r.reason,
-      status: 'pending',
-      createdAt: nowIso,
-    }));
-    setReviewItems((prev) => [...prev, ...importedReviews]);
-
-    const newGaps: GapItem[] = result.toFillGaps.map((g, idx) => ({
-      id: `gap_${Date.now()}_${idx}`,
-      startTime: g.timestamp,
-      endTime: g.timestamp,
-      durationMinutes: 45,
-      type: g.suspectedType === 'missing_off' ? 'missing_off' : 'unaccounted_gap',
-      description: g.description,
-    }));
-    setToFillGaps((prev) => [...prev, ...newGaps]);
-
-    addXp(result.validEntries.length * 10);
+    setPendingHourPrompt({
+      id: `hour_prompt_${slotYmd}_${slotHour}_${Date.now()}`,
+      date: slotYmd,
+      hour: slotHour,
+      hourLabel: `${fmt(startD)} – ${fmt(now)}`,
+      startTime: startD.toISOString(),
+      endTime: now.toISOString(),
+      uncountedMinutes: Math.max(15, 60 - tracked),
+    });
   };
 
-  // Fill Gap from Review Queue
-  const handleFillGap = (gapId: string, durationMinutes: number, type: 'study' | 'break') => {
-    const gap = toFillGaps.find((g) => g.id === gapId);
-    if (!gap) return;
+  // Scan today's completed blank hours since desk login (or 06:00 if earlier) into Review Queue
+  const handleScanBlankHoursToday = (): number => {
+    const now = new Date();
+    const todayYmd = formatLocalYMD(now);
+    const currentH = now.getHours();
+    let startH = 6;
+    if (deskLoginTimestamp) {
+      const loginD = new Date(deskLoginTimestamp);
+      if (formatLocalYMD(loginD) === todayYmd) {
+        startH = loginD.getHours();
+      }
+    }
 
-    const nowIso = new Date().toISOString();
+    const toAdd: HourlyReviewItem[] = [];
+    for (let h = startH; h < currentH; h++) {
+      const tracked = getTrackedMinutesForHour(todayYmd, h);
+      const id = `hour_${todayYmd}_${h}`;
+      if (tracked < 15 && !hourlyReviewQueue.some((q) => q.id === id)) {
+        const hStart = `${h.toString().padStart(2, '0')}:00`;
+        const hEnd = `${((h + 1) % 24).toString().padStart(2, '0')}:00`;
+        const startIso = new Date(`${todayYmd}T${hStart}:00`).toISOString();
+        const endIso = new Date(new Date(startIso).getTime() + 3600 * 1000).toISOString();
+        toAdd.push({
+          id,
+          date: todayYmd,
+          hour: h,
+          hourLabel: `${hStart} – ${hEnd}`,
+          startTime: startIso,
+          endTime: endIso,
+          uncountedMinutes: Math.max(15, 60 - tracked),
+          source: 'manual_scan',
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    if (toAdd.length > 0) {
+      setHourlyReviewQueue((prev) => [...toAdd.reverse(), ...prev]);
+    }
+    return toAdd.length;
+  };
+
+  // Resolve a queued or prompted hour directly into a TimeEntry
+  const handleResolveHourEntry = (options: {
+    startTime: string;
+    durationMinutes: number;
+    type: EntryType;
+    topic: string;
+    habitId?: string;
+    queueItemId?: string;
+  }) => {
+    const startMs = new Date(options.startTime).getTime();
+    const mins = Math.max(5, options.durationMinutes);
+    const endIso = new Date(startMs + mins * 60000).toISOString();
+
     const newEntry: TimeEntry = {
-      id: `filled_${Date.now()}`,
+      id: `hr_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       userId: 'local_desktop_user',
-      type,
+      type: options.type,
       action: 'stop',
-      topic: type === 'study' ? 'Filled Gap Session' : 'Filled Break',
-      startTime: gap.startTime,
-      endTime: new Date(new Date(gap.startTime).getTime() + durationMinutes * 60000).toISOString(),
-      durationMinutes,
-      source: 'manual',
-      createdAt: nowIso,
+      topic: options.topic,
+      habitId: options.habitId,
+      startTime: options.startTime,
+      endTime: endIso,
+      durationMinutes: mins,
+      source: options.queueItemId ? 'review_queue' : 'hourly_checkin',
+      createdAt: new Date().toISOString(),
     };
 
     setEntries((prev) =>
@@ -934,19 +1173,63 @@ export default function App() {
         (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
       )
     );
-    setToFillGaps((prev) => prev.filter((g) => g.id !== gapId));
+
+    if (options.type === 'study') {
+      addXp(Math.min(60, Math.round(mins * 0.5)));
+    } else if (options.type === 'sleep') {
+      addXp(25);
+    } else if (options.habitId || options.type === 'music') {
+      addXp(40);
+    }
+
+    if (options.queueItemId) {
+      setHourlyReviewQueue((prev) => prev.filter((q) => q.id !== options.queueItemId));
+    }
   };
 
-  const handleDismissReviewItem = (id: string) => {
-    setReviewItems((prev) => prev.filter((i) => i.id !== id));
+  const handleSendPromptToReviewQueue = (prompt: PendingHourPrompt, note?: string) => {
+    setHourlyReviewQueue((prev) => {
+      if (prev.some((q) => q.id === prompt.id)) return prev;
+      return [
+        {
+          id: prompt.id,
+          date: prompt.date,
+          hour: prompt.hour,
+          hourLabel: prompt.hourLabel,
+          startTime: prompt.startTime,
+          endTime: prompt.endTime,
+          uncountedMinutes: prompt.uncountedMinutes,
+          note,
+          source: 'hourly_prompt',
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ];
+    });
+    setPendingHourPrompt(null);
   };
 
-  const handleAddWordRule = (rule: Omit<WordRule, 'id'>) => {
-    setWordRules((prev) => [...prev, { id: `rule_${Date.now()}`, ...rule }]);
+  const handleSendHourlyItemToVault = (item: HourlyReviewItem, reason: string) => {
+    const lostHours = Math.round((item.uncountedMinutes / 60) * 10) / 10;
+    const vaultItem: VaultEntry = {
+      id: `local_v_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      userId: 'local_desktop_user',
+      date: item.date,
+      hoursLost: lostHours,
+      type: 'unreconciled_study_debt',
+      note: reason,
+      createdAt: new Date().toISOString(),
+    };
+    setVaultEntries((prev) => [...prev, vaultItem]);
+    setHourlyReviewQueue((prev) => prev.filter((q) => q.id !== item.id));
   };
 
-  const handleDeleteWordRule = (id: string) => {
-    setWordRules((prev) => prev.filter((r) => r.id !== id));
+  const handleDismissHourlyReviewItem = (id: string) => {
+    setHourlyReviewQueue((prev) => prev.filter((q) => q.id !== id));
+  };
+
+  const handleClearHourlyReviewQueue = () => {
+    setHourlyReviewQueue([]);
   };
 
   // Intro + Robot Teacher Tutorial Bundle Handlers
@@ -988,7 +1271,8 @@ export default function App() {
   return (
     <div
       data-studio-theme={studioTheme}
-      className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans selection:bg-emerald-500/25 selection:text-emerald-100 relative overflow-x-clip"
+      data-studio-font={effectiveStudioFont}
+      className="min-h-screen studio-root-canvas text-zinc-100 flex flex-col font-sans selection:bg-emerald-500/25 selection:text-emerald-100 relative overflow-x-clip"
     >
       {/* Fixed Ambient Studio Lighting Backdrop */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
@@ -1026,7 +1310,7 @@ export default function App() {
       <TopBar
         currentTab={currentTab}
         onSelectTab={(tab) => setCurrentTab(tab as typeof currentTab)}
-        reviewCount={reviewItems.length + toFillGaps.length}
+        reviewCount={hourlyReviewQueue.length}
         vaultCount={vaultEntries.length}
         achievementsCount={achievements.length}
         onOpenResetInfo={() => setIsResetInfoOpen(true)}
@@ -1065,13 +1349,13 @@ export default function App() {
         {/* Tab 1: Desk Cockpit - Cleanly Separated Step-by-Step Sections */}
         {currentTab === 'desk' && (
           <div className="space-y-10 sm:space-y-12">
-            {/* Quick Step Navigation Strip + Interactive Studio Vibe Switcher */}
-            <div className="sticky top-[56px] lg:top-[58px] z-30 py-2.5 px-4 bg-[#101014]/90 backdrop-blur-md border border-zinc-800/80 rounded-xl flex items-center justify-between gap-3 overflow-x-auto text-xs scrollbar-none shadow-xl shadow-black/50">
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="label-scandi text-emerald-400">
+            {/* Quick Step Navigation Strip + Interactive Studio Design & Personality Switcher */}
+            <div className="sticky top-[56px] lg:top-[58px] z-30 py-2.5 px-4 bg-[#101014]/90 backdrop-blur-md border border-zinc-800/80 rounded-xl flex items-center justify-between gap-3 text-xs shadow-xl shadow-black/50">
+              <div className="flex items-center gap-3 min-w-0 flex-1 overflow-x-auto scrollbar-none">
+                <span className="label-scandi text-emerald-400 shrink-0">
                   Desk Flow
                 </span>
-                <div className="flex items-center gap-1 sm:gap-1.5">
+                <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                   <a href="#section-command" className="px-2.5 py-1 rounded-md hover:bg-emerald-500/10 text-zinc-300 hover:text-emerald-200 transition-colors whitespace-nowrap">
                     <span className="font-mono text-emerald-400 font-bold mr-1">01.</span>
                     <span className="font-medium">Command</span>
@@ -1104,33 +1388,13 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Interactive Studio Mood Selector */}
-              <div className="flex items-center gap-2 pl-3 border-l border-zinc-800 shrink-0">
-                <span className="label-scandi text-zinc-500 hidden xl:inline">Studio Light</span>
-                <div className="flex items-center gap-1.5" role="group" aria-label="Studio Atmosphere Color">
-                  {(
-                    [
-                      { id: 'emerald', label: 'Emerald Focus', dotClass: 'bg-emerald-400 shadow-[0_0_10px_#34d399]' },
-                      { id: 'gold', label: 'Obsidian Gold', dotClass: 'bg-amber-400 shadow-[0_0_10px_#fbbf24]' },
-                      { id: 'violet', label: 'Royal Violet', dotClass: 'bg-purple-400 shadow-[0_0_10px_#c084fc]' },
-                      { id: 'cyan', label: 'Arctic Cyan', dotClass: 'bg-cyan-400 shadow-[0_0_10px_#22d3ee]' },
-                    ] as const
-                  ).map((vibe) => (
-                    <button
-                      key={vibe.id}
-                      type="button"
-                      onClick={() => handleSelectStudioTheme(vibe.id)}
-                      title={`Switch Studio Atmosphere: ${vibe.label}`}
-                      aria-label={`Switch Studio Atmosphere: ${vibe.label}`}
-                      className={`interactive-press w-4 h-4 rounded-full transition-all cursor-pointer ${vibe.dotClass} ${
-                        studioTheme === vibe.id
-                          ? 'ring-2 ring-white ring-offset-2 ring-offset-[#101014] scale-110 opacity-100'
-                          : 'opacity-50 hover:opacity-90 hover:scale-105'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
+              {/* Multi-Personality Studio Design, Background & Text Style Picker */}
+              <StudioDesignPicker
+                currentTheme={studioTheme}
+                onSelectTheme={handleSelectStudioTheme}
+                currentTextStyle={studioTextStyle}
+                onSelectTextStyle={handleSelectStudioTextStyle}
+              />
             </div>
 
             {/* Step 01: Desk Command Center & Active Elapsed Login Timer */}
@@ -1310,18 +1574,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 4: WhatsApp Importer */}
-        {currentTab === 'importer' && (
-          <WhatsAppImporter
-            wordRules={wordRules}
-            onAddWordRule={handleAddWordRule}
-            onDeleteWordRule={handleDeleteWordRule}
-            onCommitImport={handleCommitWhatsApp}
-            existingHashes={existingHashes}
-          />
-        )}
-
-        {/* Tab 5: Vault of Lost Time */}
+        {/* Tab 4: Vault of Lost Time */}
         {currentTab === 'vault' && (
           <div id="section-vault" className="scroll-mt-24">
             <VaultOfLostTime
@@ -1335,13 +1588,38 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 6: Review Queue */}
+        {/* Tab 5: Remade Hourly Review Queue */}
         {currentTab === 'review' && (
           <ReviewQueue
-            reviewItems={reviewItems}
-            toFillGaps={toFillGaps}
-            onDismissReviewItem={handleDismissReviewItem}
-            onFillGap={handleFillGap}
+            hourlyItems={hourlyReviewQueue}
+            habits={habits}
+            hourlyReminderEnabled={hourlyReminderPrefs.enabled}
+            autoSendBlankHours={hourlyReminderPrefs.autoQueueBlankHours}
+            secondsUntilNextReminder={secondsUntilNextReminder}
+            onToggleHourlyReminder={() =>
+              setHourlyReminderPrefs((p) => ({ ...p, enabled: !p.enabled }))
+            }
+            onToggleAutoSendBlankHours={() =>
+              setHourlyReminderPrefs((p) => ({
+                ...p,
+                autoQueueBlankHours: !p.autoQueueBlankHours,
+              }))
+            }
+            onTriggerTestPromptNow={handleTriggerHourlyPromptNow}
+            onScanBlankHoursToday={handleScanBlankHoursToday}
+            onResolveItem={({ item, type, topic, habitId, durationMinutes }) =>
+              handleResolveHourEntry({
+                startTime: item.startTime,
+                durationMinutes,
+                type,
+                topic,
+                habitId,
+                queueItemId: item.id,
+              })
+            }
+            onSendToVault={handleSendHourlyItemToVault}
+            onDismissItem={handleDismissHourlyReviewItem}
+            onClearAll={handleClearHourlyReviewQueue}
           />
         )}
       </main>
@@ -1392,6 +1670,34 @@ export default function App() {
         onDoNotShowAgain={handleDoNotShowTutorialAgain}
         onCompleteLesson={handleCompleteTutorialLesson}
         onNavigateTab={(tab) => setCurrentTab(tab)}
+      />
+
+      {/* 1-Hour Check-In Reminder Modal */}
+      <HourlyCheckInModal
+        prompt={pendingHourPrompt}
+        habits={habits}
+        onResolveHour={({ prompt, type, topic, habitId, durationMinutes }) => {
+          handleResolveHourEntry({
+            startTime: prompt.startTime,
+            durationMinutes,
+            type,
+            topic,
+            habitId,
+          });
+          setPendingHourPrompt(null);
+        }}
+        onSendToReviewQueue={handleSendPromptToReviewQueue}
+      />
+
+      {/* Left-Edge Hover / Mobile Swipe-Left Quick Life Activity Shortcode Drawer */}
+      <LifeShortcodeDrawer
+        activeSession={activeSession}
+        todayEntries={entries}
+        selectedDate={selectedDate}
+        onStartLifeTimer={(topic) => handleStartSession('life', topic)}
+        onStopSession={handleStopSession}
+        onLogPastLifeActivity={handleLogLifeActivity}
+        onUndoEntry={handleDeleteEntry}
       />
     </div>
   );

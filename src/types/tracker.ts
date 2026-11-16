@@ -1,6 +1,8 @@
-export type EntryType = 'study' | 'break' | 'music' | 'content' | 'day_boundary' | 'sleep' | 'habit';
+export type EntryType = 'study' | 'break' | 'music' | 'content' | 'day_boundary' | 'sleep' | 'habit' | 'life';
 export type ActionType = 'start' | 'stop' | 'tick';
-export type EntrySource = 'manual' | 'shortcode' | 'whatsapp_import';
+export type EntrySource = 'manual' | 'shortcode' | 'review_queue' | 'hourly_checkin';
+export type StudioThemeId = 'emerald' | 'gold' | 'violet' | 'cyan' | 'rose' | 'solar';
+export type StudioTextStyleId = 'auto' | 'minimal' | 'luxury' | 'aurora' | 'blueprint' | 'zen' | 'neopop';
 
 export interface CustomHabit {
   id: string;
@@ -36,24 +38,7 @@ export interface TimeEntry {
   endTime?: string;   // ISO string (optional if active)
   durationMinutes?: number;
   source: EntrySource;
-  sourceHash?: string;
   createdAt: string;
-}
-
-export interface DailySummary {
-  id: string; // date YYYY-MM-DD
-  userId: string;
-  date: string; // YYYY-MM-DD
-  studyMinutes: number;
-  breakMinutes: number;
-  studyTargetMinutes: number; // default 360 (6 hours)
-  breakQuotaMinutes: number;  // default 120 (2 hours)
-  studyDeficitMinutes: number;
-  breakSurplusMinutes: number;
-  reason?: string;
-  status: 'active' | 'reconciled' | 'vaulted';
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface VaultEntry {
@@ -66,12 +51,16 @@ export interface VaultEntry {
   createdAt: string;
 }
 
-export interface WordMapping {
-  id: string;
-  userId: string;
-  triggerWord: string;
-  mappedAction: string;
-  category: string;
+export interface HourlyReviewItem {
+  id: string; // e.g. hour_2026-11-15_21
+  date: string; // YYYY-MM-DD
+  hour: number; // 0..23
+  hourLabel: string; // e.g. "21:00 – 22:00"
+  startTime: string; // ISO
+  endTime: string; // ISO
+  uncountedMinutes: number;
+  note?: string;
+  source: 'hourly_auto' | 'hourly_prompt' | 'manual_scan';
   createdAt: string;
 }
 
@@ -100,22 +89,6 @@ export interface ActiveSession {
   startTime: string;
 }
 
-export interface ParsedWhatsAppResult {
-  validEntries: Array<Omit<TimeEntry, 'id' | 'userId' | 'createdAt'>>;
-  reviewItems: Array<{
-    rawMessage: string;
-    timestamp: string;
-    reason: string;
-  }>;
-  toFillGaps: Array<{
-    timestamp: string;
-    description: string;
-    suspectedType: string;
-  }>;
-  duplicateCount: number;
-  totalParsed: number;
-}
-
 export interface AchievementItem {
   id: string;
   title: string;
@@ -131,4 +104,3 @@ export interface TickerSettings {
   scrollSpeed?: 'slow' | 'normal' | 'fast';
   enabled: boolean;
 }
-

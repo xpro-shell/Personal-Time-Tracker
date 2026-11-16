@@ -46,6 +46,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
       let breakMins = 0;
       let musicMins = 0;
       let sleepMins = 0;
+      let lifeMins = 0;
       const hourEntries: TimeEntry[] = [];
 
       todayEntries.forEach((entry) => {
@@ -74,22 +75,26 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
             musicMins += overlap;
           } else if (entry.type === 'sleep') {
             sleepMins += overlap;
+          } else if (entry.type === 'life' || entry.type === 'habit') {
+            lifeMins += overlap;
           }
         }
       });
 
-      const totalTracked = Math.min(60, studyMins + breakMins + musicMins + sleepMins);
+      const totalTracked = Math.min(60, studyMins + breakMins + musicMins + sleepMins + lifeMins);
       const isUntracked = totalTracked === 0;
 
       // Determine primary activity type in this hour
-      let primaryType: 'study' | 'break' | 'music' | 'sleep' | 'untracked' = 'untracked';
+      let primaryType: 'study' | 'break' | 'music' | 'sleep' | 'life' | 'untracked' = 'untracked';
       if (sleepMins >= 30 || (sleepMins > 0 && sleepMins >= studyMins)) primaryType = 'sleep';
       else if (studyMins >= 15) primaryType = 'study';
       else if (musicMins >= 15) primaryType = 'music';
+      else if (lifeMins >= 15) primaryType = 'life';
       else if (breakMins >= 15) primaryType = 'break';
       else if (!isUntracked) {
         if (studyMins > 0) primaryType = 'study';
         else if (musicMins > 0) primaryType = 'music';
+        else if (lifeMins > 0) primaryType = 'life';
         else if (breakMins > 0) primaryType = 'break';
         else if (sleepMins > 0) primaryType = 'sleep';
       }
@@ -101,6 +106,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
         breakMins: Math.min(60, breakMins),
         musicMins: Math.min(60, musicMins),
         sleepMins: Math.min(60, sleepMins),
+        lifeMins: Math.min(60, lifeMins),
         trackedMinutes: totalTracked,
         lostMinutes: Math.max(0, 60 - totalTracked),
         isUntracked,
@@ -116,6 +122,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
     let brk = 0;
     let music = 0;
     let sleep = 0;
+    let life = 0;
 
     todayEntries.forEach((e) => {
       const dur = e.durationMinutes || 0;
@@ -123,9 +130,10 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
       else if (e.type === 'break') brk += dur;
       else if (e.type === 'music') music += dur;
       else if (e.type === 'sleep') sleep += dur;
+      else if (e.type === 'life' || e.type === 'habit') life += dur;
     });
 
-    const totalTracked = study + brk + music + sleep;
+    const totalTracked = study + brk + music + sleep + life;
     const lost = Math.max(0, 1440 - totalTracked);
 
     return {
@@ -144,6 +152,10 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
       sleepMinutes: sleep,
       sleepHours: Math.round((sleep / 60) * 10) / 10,
       sleepPct: Math.round((sleep / 1440) * 1000) / 10,
+
+      lifeMinutes: life,
+      lifeHours: Math.round((life / 60) * 10) / 10,
+      lifePct: Math.round((life / 1440) * 1000) / 10,
 
       lostMinutes: lost,
       lostHours: Math.round((lost / 60) * 10) / 10,
@@ -168,6 +180,9 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
         map['Riyaz (Music)'] = (map['Riyaz (Music)'] || 0) + (e.durationMinutes || 180);
       } else if (e.type === 'sleep') {
         map['Restorative Sleep'] = (map['Restorative Sleep'] || 0) + (e.durationMinutes || 480);
+      } else if (e.type === 'life' || e.type === 'habit') {
+        const t = e.topic || 'Life Activity';
+        map[t] = (map[t] || 0) + (e.durationMinutes || 0);
       }
     });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
@@ -249,6 +264,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
       { id: 'study', label: 'Study Focus', hours: dailyBreakdown.studyHours, pct: dailyBreakdown.studyPct, color: '#f4f4f5', strokeColor: '#ffffff' },
       { id: 'sleep', label: 'Restorative Sleep', hours: dailyBreakdown.sleepHours, pct: dailyBreakdown.sleepPct, color: '#6366f1', strokeColor: '#818cf8' },
       { id: 'music', label: 'Riyaz (Music)', hours: dailyBreakdown.musicHours, pct: dailyBreakdown.musicPct, color: '#a855f7', strokeColor: '#c084fc' },
+      { id: 'life', label: 'Life & Leisure', hours: dailyBreakdown.lifeHours, pct: dailyBreakdown.lifePct, color: '#ec4899', strokeColor: '#f472b6' },
       { id: 'break', label: 'Break Bank', hours: dailyBreakdown.breakHours, pct: dailyBreakdown.breakPct, color: '#f59e0b', strokeColor: '#fbbf24' },
       { id: 'lost', label: 'Lost / Untracked', hours: dailyBreakdown.lostHours, pct: dailyBreakdown.lostPct, color: '#ef4444', strokeColor: '#f87171' },
     ].filter((s) => s.pct > 0);
@@ -410,6 +426,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
                 if (entry.type === 'break') bgClass = 'bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold';
                 if (entry.type === 'music') bgClass = 'bg-purple-500 hover:bg-purple-400 text-white font-semibold';
                 if (entry.type === 'sleep') bgClass = 'bg-indigo-600 hover:bg-indigo-500 text-white font-semibold';
+                if (entry.type === 'life' || entry.type === 'habit') bgClass = 'bg-pink-500 hover:bg-pink-400 text-white font-semibold';
 
                 return (
                   <div
@@ -451,6 +468,10 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-xs bg-purple-500" />
                   <span className="text-zinc-300">Riyaz</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-xs bg-pink-500" />
+                  <span className="text-pink-300">Life / Leisure</span>
                 </div>
               </div>
               <span className="text-zinc-500">{dailyBreakdown.totalTrackedHours}h tracked today</span>
@@ -511,6 +532,10 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
                       slotStyle =
                         'bg-purple-900/70 text-purple-200 border-purple-500 hover:bg-purple-800';
                       label = `${slot.musicMins}m`;
+                    } else if (slot.primaryType === 'life') {
+                      slotStyle =
+                        'bg-pink-900/70 text-pink-200 border-pink-500 hover:bg-pink-800';
+                      label = `${slot.lifeMins}m`;
                     } else if (slot.primaryType === 'break') {
                       slotStyle =
                         'bg-amber-600/40 text-amber-200 border-amber-500 hover:bg-amber-600/60';
@@ -587,6 +612,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
                     else if (entry.type === 'break') dotClass = 'bg-amber-400';
                     else if (entry.type === 'music') dotClass = 'bg-purple-400';
                     else if (entry.type === 'sleep') dotClass = 'bg-indigo-400';
+                    else if (entry.type === 'life' || entry.type === 'habit') dotClass = 'bg-pink-400';
 
                     return (
                       <div
@@ -897,6 +923,9 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
                   } else if (slot.primaryType === 'music') {
                     candleColor = 'bg-purple-600 border-purple-400 text-white';
                     wickColor = 'bg-purple-400';
+                  } else if (slot.primaryType === 'life') {
+                    candleColor = 'bg-pink-600 border-pink-400 text-white';
+                    wickColor = 'bg-pink-400';
                   } else if (slot.primaryType === 'break') {
                     candleColor = 'bg-amber-500 border-amber-300 text-zinc-950';
                     wickColor = 'bg-amber-400';
@@ -982,6 +1011,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
                 const sPct = (slot.studyMins / 60) * 100;
                 const brkPct = (slot.breakMins / 60) * 100;
                 const mPct = (slot.musicMins / 60) * 100;
+                const lPct = (slot.lifeMins / 60) * 100;
                 const slPct = (slot.sleepMins / 60) * 100;
                 const lostPct = (slot.lostMinutes / 60) * 100;
 
@@ -989,7 +1019,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
                   <div
                     key={slot.hour}
                     className="flex flex-col h-full justify-end group relative cursor-pointer"
-                    title={`${slot.hourLabel}: Study ${slot.studyMins}m, Sleep ${slot.sleepMins}m, Riyaz ${slot.musicMins}m, Break ${slot.breakMins}m, Lost ${slot.lostMinutes}m`}
+                    title={`${slot.hourLabel}: Study ${slot.studyMins}m, Sleep ${slot.sleepMins}m, Riyaz ${slot.musicMins}m, Life ${slot.lifeMins}m, Break ${slot.breakMins}m, Lost ${slot.lostMinutes}m`}
                   >
                     <div className="w-full h-full rounded-sm overflow-hidden flex flex-col-reverse bg-zinc-900/40 border border-zinc-800/60 group-hover:border-zinc-500 transition-colors">
                       {/* Study Segment */}
@@ -1011,6 +1041,13 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
                         <div
                           className="w-full bg-purple-500 transition-all"
                           style={{ height: `${mPct}%` }}
+                        />
+                      )}
+                      {/* Life / Leisure Segment */}
+                      {lPct > 0 && (
+                        <div
+                          className="w-full bg-pink-500 transition-all"
+                          style={{ height: `${lPct}%` }}
                         />
                       )}
                       {/* Break Segment */}
@@ -1110,7 +1147,7 @@ export const TimelineHeatmap: React.FC<TimelineHeatmapProps> = ({
           </div>
         ) : (
           <p className="text-xs font-mono text-zinc-500">
-            No topic data recorded yet. Log sessions with "S on [topic]", "sleep", or import WhatsApp logs.
+            No topic data recorded yet. Log sessions with "S on [topic]", "sleep", or use the Left Life Shortcode drawer.
           </p>
         )}
       </div>

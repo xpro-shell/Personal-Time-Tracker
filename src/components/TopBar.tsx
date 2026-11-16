@@ -30,7 +30,6 @@ export const TopBar: React.FC<TopBarProps> = ({
     { id: 'desk', label: 'Desk Tracker' },
     { id: 'timeline', label: 'Timeline & Heatmap' },
     { id: 'achievements', label: `Achievements${achievementsCount > 0 ? ` (${achievementsCount})` : ''}` },
-    { id: 'importer', label: 'WhatsApp Importer' },
     { id: 'vault', label: `Vault of Lost Time${vaultCount > 0 ? ` (${vaultCount})` : ''}` },
     { id: 'review', label: `Review Queue${reviewCount > 0 ? ` (${reviewCount})` : ''}` },
   ];

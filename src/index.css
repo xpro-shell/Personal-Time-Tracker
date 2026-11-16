@@ -8,30 +8,161 @@
   --studio-orb-3: rgba(99, 102, 241, 0.08);
   --studio-accent: #34d399;
   --studio-accent-ring: rgba(52, 211, 153, 0.45);
+  --studio-canvas: #09090b;
+  --studio-bg-pattern: none;
+  --studio-bg-size: auto;
+  --card-radius: 1rem;
+  --studio-font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --studio-font-display: 'Playfair Display', Georgia, Cambria, "Times New Roman", serif;
+  --studio-font-mono: 'JetBrains Mono', monospace;
+  --studio-font-label: 'Plus Jakarta Sans', sans-serif;
+  --studio-display-tracking: -0.02em;
+  --studio-display-style: normal;
+  --studio-display-transform: none;
+  --studio-label-tracking: 0.16em;
 }
 
 [data-studio-theme="gold"] {
-  --studio-orb-1: rgba(245, 158, 11, 0.16);
-  --studio-orb-2: rgba(234, 88, 12, 0.1);
-  --studio-orb-3: rgba(16, 185, 129, 0.08);
+  --studio-orb-1: rgba(245, 158, 11, 0.18);
+  --studio-orb-2: rgba(217, 119, 6, 0.12);
+  --studio-orb-3: rgba(180, 83, 9, 0.09);
   --studio-accent: #fbbf24;
-  --studio-accent-ring: rgba(251, 191, 36, 0.45);
+  --studio-accent-ring: rgba(251, 191, 36, 0.48);
+  --studio-canvas: #0b0907;
+  --studio-bg-pattern: repeating-linear-gradient(
+    -45deg,
+    rgba(251, 191, 36, 0.03) 0px,
+    rgba(251, 191, 36, 0.03) 1px,
+    transparent 1px,
+    transparent 28px
+  );
+  --studio-bg-size: auto;
+  --card-radius: 0.875rem;
 }
 
 [data-studio-theme="violet"] {
-  --studio-orb-1: rgba(168, 85, 247, 0.18);
-  --studio-orb-2: rgba(99, 102, 241, 0.12);
-  --studio-orb-3: rgba(236, 72, 153, 0.08);
+  --studio-orb-1: rgba(168, 85, 247, 0.22);
+  --studio-orb-2: rgba(99, 102, 241, 0.16);
+  --studio-orb-3: rgba(236, 72, 153, 0.12);
   --studio-accent: #c084fc;
-  --studio-accent-ring: rgba(192, 132, 252, 0.45);
+  --studio-accent-ring: rgba(192, 132, 252, 0.5);
+  --studio-canvas: #0b0714;
+  --studio-bg-pattern: radial-gradient(ellipse at 20% 20%, rgba(168, 85, 247, 0.09), transparent 55%),
+    radial-gradient(ellipse at 80% 75%, rgba(236, 72, 153, 0.08), transparent 55%);
+  --studio-bg-size: 100% 100%;
+  --card-radius: 1.35rem;
 }
 
 [data-studio-theme="cyan"] {
-  --studio-orb-1: rgba(34, 211, 238, 0.16);
-  --studio-orb-2: rgba(59, 130, 246, 0.12);
+  --studio-orb-1: rgba(34, 211, 238, 0.17);
+  --studio-orb-2: rgba(59, 130, 246, 0.14);
   --studio-orb-3: rgba(16, 185, 129, 0.09);
   --studio-accent: #22d3ee;
   --studio-accent-ring: rgba(34, 211, 238, 0.45);
+  --studio-canvas: #060d14;
+  --studio-bg-pattern: linear-gradient(to right, rgba(34, 211, 238, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(34, 211, 238, 0.045) 1px, transparent 1px);
+  --studio-bg-size: 36px 36px;
+  --card-radius: 0.65rem;
+}
+
+[data-studio-theme="rose"] {
+  --studio-orb-1: rgba(244, 63, 94, 0.18);
+  --studio-orb-2: rgba(251, 146, 60, 0.12);
+  --studio-orb-3: rgba(217, 70, 239, 0.1);
+  --studio-accent: #fb7185;
+  --studio-accent-ring: rgba(251, 113, 133, 0.48);
+  --studio-canvas: #12090e;
+  --studio-bg-pattern: radial-gradient(rgba(251, 113, 133, 0.12) 1px, transparent 1px);
+  --studio-bg-size: 26px 26px;
+  --card-radius: 1.5rem;
+}
+
+[data-studio-theme="solar"] {
+  --studio-orb-1: rgba(250, 204, 21, 0.18);
+  --studio-orb-2: rgba(163, 230, 53, 0.13);
+  --studio-orb-3: rgba(249, 115, 22, 0.12);
+  --studio-accent: #facc15;
+  --studio-accent-ring: rgba(250, 204, 21, 0.55);
+  --studio-canvas: #0c1017;
+  --studio-bg-pattern: radial-gradient(rgba(250, 204, 21, 0.14) 1.25px, transparent 1.25px);
+  --studio-bg-size: 20px 20px;
+  --card-radius: 0.5rem;
+}
+
+/* Bundled Studio Typography Styles (Matched per Design or Mix-and-Matched) */
+[data-studio-font="minimal"] {
+  --studio-font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --studio-font-display: 'Playfair Display', Georgia, Cambria, "Times New Roman", serif;
+  --studio-font-mono: 'JetBrains Mono', monospace;
+  --studio-font-label: 'Plus Jakarta Sans', sans-serif;
+  --studio-display-tracking: -0.02em;
+  --studio-display-style: normal;
+  --studio-display-transform: none;
+  --studio-label-tracking: 0.16em;
+}
+
+[data-studio-font="luxury"] {
+  --studio-font-body: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  --studio-font-display: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  --studio-font-mono: 'JetBrains Mono', monospace;
+  --studio-font-label: 'Outfit', sans-serif;
+  --studio-display-tracking: 0.015em;
+  --studio-display-style: italic;
+  --studio-display-transform: none;
+  --studio-label-tracking: 0.22em;
+}
+
+[data-studio-font="aurora"] {
+  --studio-font-body: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  --studio-font-display: 'Syne', 'Space Grotesk', sans-serif;
+  --studio-font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+  --studio-font-label: 'Space Grotesk', sans-serif;
+  --studio-display-tracking: -0.025em;
+  --studio-display-style: normal;
+  --studio-display-transform: none;
+  --studio-label-tracking: 0.14em;
+}
+
+[data-studio-font="blueprint"] {
+  --studio-font-body: 'Space Grotesk', 'IBM Plex Mono', monospace;
+  --studio-font-display: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  --studio-font-mono: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  --studio-font-label: 'IBM Plex Mono', monospace;
+  --studio-display-tracking: 0.04em;
+  --studio-display-style: normal;
+  --studio-display-transform: uppercase;
+  --studio-label-tracking: 0.18em;
+}
+
+[data-studio-font="zen"] {
+  --studio-font-body: 'Nunito', 'Plus Jakarta Sans', sans-serif;
+  --studio-font-display: 'Fraunces', 'Playfair Display', Georgia, serif;
+  --studio-font-mono: 'JetBrains Mono', monospace;
+  --studio-font-label: 'Nunito', sans-serif;
+  --studio-display-tracking: -0.015em;
+  --studio-display-style: normal;
+  --studio-display-transform: none;
+  --studio-label-tracking: 0.14em;
+}
+
+[data-studio-font="neopop"] {
+  --studio-font-body: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  --studio-font-display: 'Syne', 'Space Grotesk', sans-serif;
+  --studio-font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+  --studio-font-label: 'Space Grotesk', sans-serif;
+  --studio-display-tracking: -0.03em;
+  --studio-display-style: normal;
+  --studio-display-transform: uppercase;
+  --studio-label-tracking: 0.13em;
+}
+
+.studio-root-canvas {
+  background-color: var(--studio-canvas);
+  background-image: var(--studio-bg-pattern);
+  background-size: var(--studio-bg-size);
+  font-family: var(--studio-font-body);
+  transition: background-color 350ms ease;
 }
 
 @layer base {
@@ -43,25 +174,31 @@
   }
 }
 
-/* Editorial Luxury Hero & Section Headings */
+.studio-root-canvas .font-sans {
+  font-family: var(--studio-font-body);
+}
+
+/* Editorial & Theme-Driven Headings */
 .font-display {
-  font-family: 'Playfair Display', Georgia, Cambria, "Times New Roman", serif;
-  letter-spacing: -0.02em;
+  font-family: var(--studio-font-display, 'Playfair Display', Georgia, Cambria, "Times New Roman", serif);
+  letter-spacing: var(--studio-display-tracking, -0.02em);
+  font-style: var(--studio-display-style, normal);
+  text-transform: var(--studio-display-transform, none);
   font-feature-settings: "kern" 1, "liga" 1;
 }
 
-/* Scandinavian Minimal Labels */
+/* Scandinavian & Theme-Driven Section Labels */
 .label-scandi {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--studio-font-label, 'Plus Jakarta Sans', sans-serif);
   font-size: 0.6875rem;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--studio-label-tracking, 0.16em);
   line-height: 1.2;
 }
 
 .font-mono, [class*="font-mono"], .tabular-nums {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--studio-font-mono, 'JetBrains Mono', monospace);
   font-variant-numeric: tabular-nums;
 }
 
@@ -69,12 +206,14 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Luminous Interactive Card Depth & Top Specular Rim */
+/* Luminous Interactive Card Depth & Top Specular Rim + Personality Design Overrides */
 .studio-card {
   position: relative;
+  border-radius: var(--card-radius, 1rem);
   transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
               border-color 220ms ease,
-              box-shadow 260ms ease;
+              box-shadow 260ms ease,
+              border-radius 260ms ease;
 }
 
 .studio-card::before {
@@ -94,6 +233,35 @@ html {
 
 .studio-card:hover::before {
   opacity: 1;
+}
+
+/* Personality-specific card surface architectures beyond Minimalist */
+[data-studio-theme="violet"] .studio-card {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 16px 40px -18px rgba(168, 85, 247, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+[data-studio-theme="gold"] .studio-card::before {
+  background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.55), transparent);
+}
+
+[data-studio-theme="cyan"] .studio-card {
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.14), 0 14px 36px -18px rgba(34, 211, 238, 0.25);
+}
+
+[data-studio-theme="rose"] .studio-card {
+  box-shadow: 0 14px 38px -16px rgba(244, 63, 94, 0.26);
+}
+
+[data-studio-theme="solar"] .studio-card {
+  border-width: 2px;
+  box-shadow: 4px 4px 0px rgba(250, 204, 21, 0.32);
+}
+
+[data-studio-theme="solar"] .studio-card:hover {
+  transform: translate(-1px, -3px);
+  box-shadow: 6px 6px 0px rgba(250, 204, 21, 0.55);
 }
 
 .interactive-press {
