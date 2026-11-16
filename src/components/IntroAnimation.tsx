@@ -7,6 +7,9 @@ interface IntroAnimationProps {
   autoShowOnMount?: boolean;
 }
 
+const SAKURA_SERIF_FONT = "'Fraunces', 'Playfair Display', Georgia, serif";
+const SAKURA_BODY_FONT = "'Nunito', 'Plus Jakarta Sans', sans-serif";
+
 export const IntroAnimation: React.FC<IntroAnimationProps> = ({
   onComplete,
   forceShow = false,
@@ -14,8 +17,7 @@ export const IntroAnimation: React.FC<IntroAnimationProps> = ({
 }) => {
   const [visible, setVisible] = useState(() => {
     if (forceShow) return true;
-    if (!autoShowOnMount) return false;
-    return true;
+    return autoShowOnMount;
   });
   const [fading, setFading] = useState(false);
 
@@ -64,11 +66,12 @@ export const IntroAnimation: React.FC<IntroAnimationProps> = ({
       role="button"
       tabIndex={0}
       aria-label="Tap anywhere to enter Personal Time Tracker"
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-[#09090b] cursor-pointer transition-opacity duration-300 ${
+      style={{ fontFamily: SAKURA_BODY_FONT }}
+      className={`fixed inset-0 z-[90] flex items-center justify-center bg-[#09090b] cursor-pointer transition-opacity duration-300 ${
         fading ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Subtle Single Emerald Ambient Studio Glow */}
+      {/* Subtle Ambient Studio Glow */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.1)_0%,transparent_65%)] pointer-events-none" />
 
       <div className="text-center px-6 max-w-xl relative select-none">
@@ -77,24 +80,36 @@ export const IntroAnimation: React.FC<IntroAnimationProps> = ({
           <div className="w-4 h-4 border-2 border-emerald-400 rotate-45 rounded-xs" />
         </div>
 
-        {/* Editorial Luxury Wordmark */}
-        <h1 className="font-display text-3xl sm:text-5xl font-semibold tracking-tight text-white animate-in fade-in slide-in-from-bottom-2 duration-700">
+        {/* Fixed Sakura Serif Wordmark */}
+        <h1
+          style={{ fontFamily: SAKURA_SERIF_FONT, letterSpacing: '-0.015em' }}
+          className="text-3xl sm:text-5xl font-semibold text-white animate-in fade-in slide-in-from-bottom-2 duration-700"
+        >
           Personal Time Tracker
         </h1>
 
         {/* Fine single emerald hairline divider */}
         <div className="my-4 mx-auto w-16 h-px bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-in zoom-in-x duration-700" />
 
-        {/* Scandinavian Minimal Subtitle */}
-        <p className="label-scandi text-emerald-400 animate-in fade-in slide-in-from-bottom-3 duration-700">
+        {/* Fixed Sakura Serif Subtitle */}
+        <p
+          style={{ fontFamily: SAKURA_SERIF_FONT, letterSpacing: '0.06em' }}
+          className="text-sm sm:text-base font-medium text-emerald-400 animate-in fade-in slide-in-from-bottom-3 duration-700"
+        >
           The Honest Desk Accounting System
         </p>
 
-        <p className="mt-3 text-xs font-sans text-zinc-400 tracking-wide">
+        <p
+          style={{ fontFamily: SAKURA_BODY_FONT }}
+          className="mt-3 text-xs text-zinc-400 tracking-wide"
+        >
           Focus · Habits · Sleep · Achievements · Accountability
         </p>
 
-        <span className="inline-block mt-10 px-4 py-2 rounded-full border border-emerald-500/35 bg-emerald-500/10 label-scandi text-emerald-300 animate-pulse">
+        <span
+          style={{ fontFamily: SAKURA_SERIF_FONT, letterSpacing: '0.08em' }}
+          className="inline-block mt-10 px-5 py-2 rounded-full border border-emerald-500/35 bg-emerald-500/10 text-xs font-medium uppercase text-emerald-300 animate-pulse"
+        >
           Tap anywhere to continue
         </span>
       </div>

@@ -1299,7 +1299,7 @@ export default function App() {
       {/* Minimalist Cinematic Intro Animation (Bundled with Robot Teacher Tutorial) */}
       <IntroAnimation
         forceShow={forceShowIntro}
-        autoShowOnMount={!initialTutorialPrefs.doNotShowAgain}
+        autoShowOnMount={true}
         onComplete={handleIntroComplete}
       />
 
