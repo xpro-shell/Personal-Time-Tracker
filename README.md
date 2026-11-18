@@ -60,6 +60,22 @@ The repository allows the `esbuild` install script because Vite needs it to inst
 **🛠 Fixes and Improvements**
 - **Vault** now shows This Week's lost time by default. You can switch to Total or Past time.
 - **Sleep logging fixed:** you can now log sleep at any time, like 1 AM to 10 AM. Before, it only worked if you slept before 12 AM and woke up after.
+
+### v2.5.0 "Midnight Continuity & Time Recovery" (19 Nov 2026)
+
+**🌙 Midnight Fixes**
+- **Sessions that cross midnight:** Study, Break or Sleep sessions running past 12:00 AM now stay on the day they started, including any notes you add after midnight, until you stop the session.
+- **Desk Timer keeps going:** if your Desk Timer is still running past midnight, yesterday stays open so you can finish your remaining time. Click **Reset to Today** in Desk Command Center when you're ready to move on.
+- **Send time back to yesterday:** use **Send Time Back** in the Past Weekday banner, or **Prev Day** on any entry in Activity Progress, to move after-midnight logs to yesterday. Any shortfall or Vault debt clears automatically.
+
+**🔕 Less Distraction**
+- The hourly "untracked time" popups are gone. Your manual timers, notes and shortcuts all work as before.
+
+**🔒 Your Data Is Safe**
+- Updating with `git pull` never touches your logs, carried-forward balances, Vault hours, custom habits or XP.
+
+
+
 ## Optional configuration
 
 Most local tracking features do not require a `.env` file. Some AI Studio or Gemini-powered functionality may need a Gemini API key and deployment-specific configuration. See [`.env.example`](.env.example) for available settings.
