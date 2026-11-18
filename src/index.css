@@ -1,6 +1,38 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Register Studio Light color properties so radial-gradient orbs & canvas colors interpolate silky smoothly */
+@property --studio-orb-1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(16, 185, 129, 0.16);
+}
+@property --studio-orb-2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(20, 184, 166, 0.11);
+}
+@property --studio-orb-3 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(99, 102, 241, 0.08);
+}
+@property --studio-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #34d399;
+}
+@property --studio-accent-ring {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(52, 211, 153, 0.45);
+}
+@property --studio-canvas {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #09090b;
+}
+
 :root,
 [data-studio-theme="emerald"] {
   --studio-orb-1: rgba(16, 185, 129, 0.16);
@@ -90,6 +122,44 @@
   --card-radius: 0.5rem;
 }
 
+[data-studio-theme="royal"] {
+  --studio-orb-1: rgba(234, 179, 8, 0.22);
+  --studio-orb-2: rgba(190, 24, 93, 0.18);
+  --studio-orb-3: rgba(124, 58, 237, 0.15);
+  --studio-accent: #fcd34d;
+  --studio-accent-ring: rgba(252, 211, 77, 0.52);
+  --studio-canvas: #12070e;
+  --studio-bg-pattern: repeating-linear-gradient(
+      45deg,
+      rgba(252, 211, 77, 0.03) 0px,
+      rgba(252, 211, 77, 0.03) 1px,
+      transparent 1px,
+      transparent 34px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(252, 211, 77, 0.03) 0px,
+      rgba(252, 211, 77, 0.03) 1px,
+      transparent 1px,
+      transparent 34px
+    );
+  --studio-bg-size: auto;
+  --card-radius: 1.1rem;
+}
+
+[data-studio-theme="synth"] {
+  --studio-orb-1: rgba(236, 72, 153, 0.25);
+  --studio-orb-2: rgba(6, 182, 212, 0.22);
+  --studio-orb-3: rgba(139, 92, 246, 0.18);
+  --studio-accent: #f472b6;
+  --studio-accent-ring: rgba(244, 114, 182, 0.55);
+  --studio-canvas: #070514;
+  --studio-bg-pattern: linear-gradient(to bottom, rgba(236, 72, 153, 0.06) 1px, transparent 1px),
+    linear-gradient(to right, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+  --studio-bg-size: 44px 28px;
+  --card-radius: 0.75rem;
+}
+
 /* Bundled Studio Typography Styles (Matched per Design or Mix-and-Matched) */
 [data-studio-font="minimal"] {
   --studio-font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -157,12 +227,63 @@
   --studio-label-tracking: 0.13em;
 }
 
+[data-studio-font="royal"] {
+  --studio-font-body: 'Lora', Georgia, serif;
+  --studio-font-display: 'Cinzel Decorative', 'Cinzel', Georgia, serif;
+  --studio-font-mono: 'JetBrains Mono', monospace;
+  --studio-font-label: 'Cinzel', Georgia, serif;
+  --studio-display-tracking: 0.04em;
+  --studio-display-style: normal;
+  --studio-display-transform: uppercase;
+  --studio-label-tracking: 0.2em;
+}
+
+[data-studio-font="monarch"] {
+  --studio-font-body: 'Outfit', 'Lora', serif;
+  --studio-font-display: 'Cinzel', 'Playfair Display', Georgia, serif;
+  --studio-font-mono: 'JetBrains Mono', monospace;
+  --studio-font-label: 'Cinzel', Georgia, serif;
+  --studio-display-tracking: 0.06em;
+  --studio-display-style: normal;
+  --studio-display-transform: none;
+  --studio-label-tracking: 0.22em;
+}
+
+[data-studio-font="orbit"] {
+  --studio-font-body: 'Space Grotesk', sans-serif;
+  --studio-font-display: 'Orbitron', 'Space Grotesk', sans-serif;
+  --studio-font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+  --studio-font-label: 'Orbitron', sans-serif;
+  --studio-display-tracking: 0.05em;
+  --studio-display-style: normal;
+  --studio-display-transform: uppercase;
+  --studio-label-tracking: 0.18em;
+}
+
+[data-studio-font="crazy"] {
+  --studio-font-body: 'Space Grotesk', sans-serif;
+  --studio-font-display: 'Bungee', 'Righteous', sans-serif;
+  --studio-font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+  --studio-font-label: 'Righteous', sans-serif;
+  --studio-display-tracking: 0.01em;
+  --studio-display-style: normal;
+  --studio-display-transform: none;
+  --studio-label-tracking: 0.14em;
+}
+
 .studio-root-canvas {
   background-color: var(--studio-canvas);
   background-image: var(--studio-bg-pattern);
   background-size: var(--studio-bg-size);
   font-family: var(--studio-font-body);
-  transition: background-color 350ms ease;
+  transition:
+    background-color 850ms cubic-bezier(0.22, 1, 0.36, 1),
+    --studio-canvas 850ms cubic-bezier(0.22, 1, 0.36, 1),
+    --studio-orb-1 950ms cubic-bezier(0.22, 1, 0.36, 1),
+    --studio-orb-2 950ms cubic-bezier(0.22, 1, 0.36, 1),
+    --studio-orb-3 950ms cubic-bezier(0.22, 1, 0.36, 1),
+    --studio-accent 750ms ease,
+    --studio-accent-ring 750ms ease;
 }
 
 @layer base {
@@ -262,6 +383,22 @@ html {
 [data-studio-theme="solar"] .studio-card:hover {
   transform: translate(-1px, -3px);
   box-shadow: 6px 6px 0px rgba(250, 204, 21, 0.55);
+}
+
+[data-studio-theme="royal"] .studio-card {
+  box-shadow: 0 18px 42px -16px rgba(234, 179, 8, 0.25), inset 0 1px 0 rgba(252, 211, 77, 0.22);
+}
+
+[data-studio-theme="royal"] .studio-card::before {
+  background: linear-gradient(90deg, transparent, rgba(252, 211, 77, 0.72), transparent);
+}
+
+[data-studio-theme="synth"] .studio-card {
+  box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.22), 0 16px 38px -16px rgba(34, 211, 238, 0.32);
+}
+
+[data-studio-theme="synth"] .studio-card::before {
+  background: linear-gradient(90deg, rgba(236, 72, 153, 0.65), rgba(34, 211, 238, 0.65));
 }
 
 .interactive-press {
@@ -452,4 +589,48 @@ html {
   padding: 6px;
   background-color: rgba(16, 185, 129, 0.03);
   animation: spotlightPulse 1.8s ease-in-out infinite;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Sleek dark scrollbars across overflow panels (eliminates harsh light OS scrollbars) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(113, 113, 122, 0.42) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.38);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(161, 161, 170, 0.62);
+}
+
+/* Diagonal crisp overlay stripes for premium Growth Cards progress bars */
+.progress-stripe-overlay {
+  background-image: repeating-linear-gradient(
+    -55deg,
+    rgba(255, 255, 255, 0.16) 0px,
+    rgba(255, 255, 255, 0.16) 6px,
+    transparent 6px,
+    transparent 12px
+  );
 }

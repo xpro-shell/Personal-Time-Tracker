@@ -1,17 +1,21 @@
-import { Award, BookOpen, Flame, Play, Square, Target, Zap } from 'lucide-react';
+import { Award, BarChart2, BookOpen, Flame, Pause, Play, Square, Target, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { playDeskClick } from '../lib/audioAlert';
 
 interface StudyQuotaCardProps {
   completedStudyMinutesToday: number;
   isStudyActive: boolean;
+  isSessionPaused?: boolean;
   activeStudyDurationSeconds: number;
   studyDeficitCarryForwardMinutes: number; // e.g. 120 mins from yesterday
   currentStreak: number;
   level: number;
   onStartStudy: (topic: string) => void;
+  onPauseSession?: () => void;
+  onResumeSession?: () => void;
   onStopSession: () => void;
   onShortcodeSubmit: (command: string) => void;
+  onOpenProgress?: () => void;
 }
 
 const QUICK_TOPICS = ['Deep Work', 'DSA / Coding', 'System Design', 'Revision'];
@@ -19,13 +23,17 @@ const QUICK_TOPICS = ['Deep Work', 'DSA / Coding', 'System Design', 'Revision'];
 export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
   completedStudyMinutesToday,
   isStudyActive,
+  isSessionPaused = false,
   activeStudyDurationSeconds,
   studyDeficitCarryForwardMinutes,
   currentStreak,
   level,
   onStartStudy,
+  onPauseSession,
+  onResumeSession,
   onStopSession,
   onShortcodeSubmit,
+  onOpenProgress,
 }) => {
   const [studyTopicInput, setStudyTopicInput] = useState('');
   const [commandInput, setCommandInput] = useState('');
@@ -85,11 +93,11 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
             <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
               <BookOpen className="w-4 h-4 text-emerald-400" />
             </div>
-            <h3 className="font-display text-base font-semibold tracking-tight text-white">
+            <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white">
               6-Hour Study Quota
             </h3>
           </div>
-          <div className="flex items-center gap-2.5 text-xs font-mono tabular-nums text-zinc-400">
+          <div className="flex items-center gap-2 text-xs font-mono tabular-nums text-zinc-400">
             <div className="flex items-center gap-1 text-amber-300 font-semibold">
               <Flame className="w-3.5 h-3.5 text-amber-400" />
               <span>{currentStreak}d</span>
@@ -99,6 +107,20 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
               <Award className="w-3.5 h-3.5" />
               <span>Lv {level}</span>
             </div>
+            {onOpenProgress && (
+              <button
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  onOpenProgress();
+                }}
+                className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 hover:border-emerald-400/60 text-emerald-300 hover:text-white transition-all cursor-pointer"
+                title="View Study progress graph (Hours, Weeks, Months, Years)"
+                aria-label="View Study progress graph"
+              >
+                <BarChart2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -194,17 +216,46 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
             className="flex-1 min-w-0 px-3 py-2 text-xs font-mono bg-zinc-950/90 border border-zinc-800 rounded-lg text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30"
           />
           {isStudyActive ? (
-            <button
-              type="button"
-              onClick={() => {
-                playDeskClick();
-                onStopSession();
-              }}
-              className="interactive-press flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 rounded-lg hover:brightness-110 transition-all whitespace-nowrap cursor-pointer shadow-[0_0_16px_-4px_rgba(220,38,38,0.6)]"
-            >
-              <Square className="w-3.5 h-3.5 fill-current" />
-              <span>Stop (S off)</span>
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {onPauseSession && onResumeSession && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    playDeskClick();
+                    if (isSessionPaused) onResumeSession();
+                    else onPauseSession();
+                  }}
+                  className={`interactive-press flex items-center gap-1 px-2.5 py-2 text-xs font-bold rounded-lg border transition-all whitespace-nowrap cursor-pointer ${
+                    isSessionPaused
+                      ? 'bg-emerald-400 text-zinc-950 border-emerald-300'
+                      : 'bg-amber-500/20 text-amber-200 border-amber-400/55 hover:bg-amber-500/30'
+                  }`}
+                >
+                  {isSessionPaused ? (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Resume</span>
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="w-3.5 h-3.5" />
+                      <span>Pause</span>
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  onStopSession();
+                }}
+                className="interactive-press flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 rounded-lg hover:brightness-110 transition-all whitespace-nowrap cursor-pointer shadow-[0_0_16px_-4px_rgba(220,38,38,0.6)]"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span>Stop</span>
+              </button>
+            </div>
           ) : (
             <button
               type="button"

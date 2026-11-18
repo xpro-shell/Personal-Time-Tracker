@@ -5,6 +5,7 @@ import {
   Footprints,
   Gamepad2,
   History,
+  Pause,
   Phone,
   Pin,
   PinOff,
@@ -22,12 +23,15 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { playDeskClick, playEarnedChime } from '../lib/audioAlert';
 import { ActiveSession, TimeEntry } from '../types/tracker';
+import { isSameLocalDate } from './DateNavigator';
 
 interface LifeShortcodeDrawerProps {
   activeSession: ActiveSession | null;
   todayEntries: TimeEntry[];
   selectedDate: string;
   onStartLifeTimer: (topic: string) => void;
+  onPauseSession?: () => void;
+  onResumeSession?: () => void;
   onStopSession: () => void;
   onLogPastLifeActivity: (options: { topic: string; durationMinutes: number }) => void;
   onUndoEntry: (entryId: string) => void;
@@ -72,6 +76,8 @@ export const LifeShortcodeDrawer: React.FC<LifeShortcodeDrawerProps> = ({
   todayEntries,
   selectedDate,
   onStartLifeTimer,
+  onPauseSession,
+  onResumeSession,
   onStopSession,
   onLogPastLifeActivity,
   onUndoEntry,
@@ -94,7 +100,7 @@ export const LifeShortcodeDrawer: React.FC<LifeShortcodeDrawerProps> = ({
 
   const lifeEntriesToday = useMemo(() => {
     return todayEntries.filter(
-      (e) => e.type === 'life' && e.startTime && e.startTime.startsWith(selectedDate)
+      (e) => e.type === 'life' && isSameLocalDate(e.startTime, selectedDate)
     );
   }, [todayEntries, selectedDate]);
 
@@ -399,28 +405,69 @@ export const LifeShortcodeDrawer: React.FC<LifeShortcodeDrawerProps> = ({
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
           {/* Active Life Timer Banner if Running */}
           {isLifeTimerActive && activeSession && (
-            <div className="p-3 rounded-xl bg-gradient-to-r from-pink-950/60 to-rose-950/40 border border-pink-400/60 flex items-center justify-between gap-3">
+            <div
+              className={`p-3 rounded-xl border flex items-center justify-between gap-2 ${
+                activeSession.isPaused
+                  ? 'bg-gradient-to-r from-amber-950/50 to-zinc-950 border-amber-400/60'
+                  : 'bg-gradient-to-r from-pink-950/60 to-rose-950/40 border-pink-400/60'
+              }`}
+            >
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-pink-400 animate-pulse" />
-                  <span className="label-scandi text-pink-300">Live Activity</span>
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      activeSession.isPaused ? 'bg-amber-400' : 'bg-pink-400 animate-pulse'
+                    }`}
+                  />
+                  <span className="label-scandi text-pink-300">
+                    {activeSession.isPaused ? 'Paused Activity' : 'Live Activity'}
+                  </span>
                 </div>
                 <p className="text-sm font-semibold text-white truncate mt-0.5">
                   {activeSession.topic}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  playDeskClick();
-                  onStopSession();
-                  showFeedback(`Saved "${activeSession.topic}"`);
-                }}
-                className="interactive-press flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-500 rounded-lg cursor-pointer shrink-0"
-              >
-                <Square className="w-3 h-3 fill-current" />
-                <span>Stop</span>
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {onPauseSession && onResumeSession && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playDeskClick();
+                      if (activeSession.isPaused) onResumeSession();
+                      else onPauseSession();
+                    }}
+                    className={`interactive-press flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-lg border cursor-pointer ${
+                      activeSession.isPaused
+                        ? 'bg-emerald-400 text-zinc-950 border-emerald-300'
+                        : 'bg-amber-500/20 text-amber-200 border-amber-400/55 hover:bg-amber-500/30'
+                    }`}
+                  >
+                    {activeSession.isPaused ? (
+                      <>
+                        <Play className="w-3 h-3 fill-current" />
+                        <span>Resume</span>
+                      </>
+                    ) : (
+                      <>
+                        <Pause className="w-3 h-3" />
+                        <span>Pause</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    playDeskClick();
+                    onStopSession();
+                    showFeedback(`Saved "${activeSession.topic}"`);
+                  }}
+                  className="interactive-press flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-500 rounded-lg cursor-pointer shrink-0"
+                >
+                  <Square className="w-3 h-3 fill-current" />
+                  <span>Stop</span>
+                </button>
+              </div>
             </div>
           )}
 

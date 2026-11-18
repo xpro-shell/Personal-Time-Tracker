@@ -1,8 +1,19 @@
-export type EntryType = 'study' | 'break' | 'music' | 'content' | 'day_boundary' | 'sleep' | 'habit' | 'life';
+export type EntryType = 'study' | 'break' | 'music' | 'content' | 'day_boundary' | 'sleep' | 'habit' | 'life' | 'desk';
 export type ActionType = 'start' | 'stop' | 'tick';
-export type EntrySource = 'manual' | 'shortcode' | 'review_queue' | 'hourly_checkin';
-export type StudioThemeId = 'emerald' | 'gold' | 'violet' | 'cyan' | 'rose' | 'solar';
-export type StudioTextStyleId = 'auto' | 'minimal' | 'luxury' | 'aurora' | 'blueprint' | 'zen' | 'neopop';
+export type EntrySource = 'manual' | 'shortcode' | 'review_queue' | 'hourly_checkin' | 'whatsapp';
+export type StudioThemeId = 'emerald' | 'gold' | 'violet' | 'cyan' | 'rose' | 'solar' | 'royal' | 'synth';
+export type StudioTextStyleId =
+  | 'auto'
+  | 'minimal'
+  | 'luxury'
+  | 'aurora'
+  | 'blueprint'
+  | 'zen'
+  | 'neopop'
+  | 'royal'
+  | 'monarch'
+  | 'orbit'
+  | 'crazy';
 
 export interface CustomHabit {
   id: string;
@@ -87,6 +98,9 @@ export interface ActiveSession {
   type: EntryType;
   topic?: string;
   startTime: string;
+  isPaused?: boolean;
+  pausedAt?: string | null;
+  accumulatedPausedMs?: number;
 }
 
 export interface AchievementItem {

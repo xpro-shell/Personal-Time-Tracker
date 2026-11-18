@@ -1,4 +1,4 @@
-import { Bed, CheckCircle2, Clock, Moon, Play, RotateCcw, Sparkles } from 'lucide-react';
+import { BarChart2, CheckCircle2, Clock, Moon, Pause, Play, RotateCcw } from 'lucide-react';
 import React, { useState } from 'react';
 import { playDeskClick, playEarnedChime } from '../lib/audioAlert';
 import { TimeEntry } from '../types/tracker';
@@ -7,16 +7,21 @@ interface SleepTrackerCardProps {
   sleepMinutesToday: number;
   targetSleepMinutes?: number; // default 480m (8h)
   isSleepActive: boolean;
+  isSessionPaused?: boolean;
   activeSleepDurationSeconds: number;
   todaySleepEntry?: TimeEntry | null;
   onStartSleep: () => void;
   onStopSleep: () => void;
+  onPauseSession?: () => void;
+  onResumeSession?: () => void;
   onLogCustomSleep: (options: {
     startTimeIso: string;
     endTimeIso: string;
     durationMinutes: number;
+    replaceExisting?: boolean;
   }) => void;
   onUndoSleep?: (id: string) => void;
+  onOpenProgress?: () => void;
   selectedDate: string; // YYYY-MM-DD
 }
 
@@ -46,18 +51,23 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
   sleepMinutesToday,
   targetSleepMinutes = 480, // 8h target
   isSleepActive,
+  isSessionPaused = false,
   activeSleepDurationSeconds,
   todaySleepEntry,
   onStartSleep,
   onStopSleep,
+  onPauseSession,
+  onResumeSession,
   onLogCustomSleep,
   onUndoSleep,
+  onOpenProgress,
   selectedDate,
 }) => {
   const [showSleepModal, setShowSleepModal] = useState(false);
-  const [sleepStart, setSleepStart] = useState('23:00');
-  const [sleepDurationHours, setSleepDurationHours] = useState(8);
-  const [sleepEnd, setSleepEnd] = useState('07:00');
+  const [sleepStart, setSleepStart] = useState('01:00');
+  const [sleepDurationHours, setSleepDurationHours] = useState(9);
+  const [sleepEnd, setSleepEnd] = useState('10:00');
+  const [replaceExisting, setReplaceExisting] = useState(false);
 
   const totalEffectiveMinutes =
     sleepMinutesToday + (isSleepActive ? Math.floor(activeSleepDurationSeconds / 60) : 0);
@@ -79,17 +89,19 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
   };
 
   const handleStartChange = (s: string) => {
+    if (!s) return;
     setSleepStart(s);
     setSleepEnd(addHoursToHHMM(s, sleepDurationHours));
   };
 
   const handleDurationChange = (durH: number) => {
-    const valid = Math.max(1, durH);
+    const valid = Math.max(0.5, durH);
     setSleepDurationHours(valid);
     setSleepEnd(addHoursToHHMM(sleepStart, valid));
   };
 
   const handleEndChange = (e: string) => {
+    if (!e) return;
     setSleepEnd(e);
     const diff = calculateDiffMinutes(sleepStart, e);
     const durH = Math.round((diff / 60) * 10) / 10;
@@ -99,36 +111,39 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
   const handleConfirmSleep = () => {
     playDeskClick();
 
-    const [sH, sM] = sleepStart.split(':').map(Number);
-    const startDate = new Date(`${selectedDate}T00:00:00`);
-    // If sleep starts after 18:00 and crosses midnight, start could be previous evening or night
-    startDate.setHours(sH, sM, 0, 0);
+    const [sH, sM] = sleepStart.split(':').map((v) => parseInt(v, 10) || 0);
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    // Construct strictly in local calendar date so 01:00 -> 10:00 always anchors cleanly to selectedDate
+    const startDate = new Date(y, m - 1, d, sH, sM, 0, 0);
 
-    const durMins = Math.round(sleepDurationHours * 60);
+    const durMins = Math.max(15, Math.round(sleepDurationHours * 60));
     const endDate = new Date(startDate.getTime() + durMins * 60000);
 
     onLogCustomSleep({
       startTimeIso: startDate.toISOString(),
       endTimeIso: endDate.toISOString(),
       durationMinutes: durMins,
+      replaceExisting,
     });
 
     playEarnedChime();
     setShowSleepModal(false);
   };
 
-  // Determine sleep window string
-  const existingSleepWindow = todaySleepEntry ? (() => {
-    const s = new Date(todaySleepEntry.startTime);
-    const durM = todaySleepEntry.durationMinutes || 480;
-    const e = todaySleepEntry.endTime
-      ? new Date(todaySleepEntry.endTime)
-      : new Date(s.getTime() + durM * 60000);
+  // Determine latest sleep window string
+  const existingSleepWindow = todaySleepEntry
+    ? (() => {
+        const s = new Date(todaySleepEntry.startTime);
+        const durM = todaySleepEntry.durationMinutes || 480;
+        const e = todaySleepEntry.endTime
+          ? new Date(todaySleepEntry.endTime)
+          : new Date(s.getTime() + durM * 60000);
 
-    const sStr = !isNaN(s.getTime()) ? formatHHMM(s) : '--:--';
-    const eStr = !isNaN(e.getTime()) ? formatHHMM(e) : '--:--';
-    return `${sStr} → ${eStr}`;
-  })() : null;
+        const sStr = !isNaN(s.getTime()) ? formatHHMM(s) : '--:--';
+        const eStr = !isNaN(e.getTime()) ? formatHHMM(e) : '--:--';
+        return `${sStr} → ${eStr}`;
+      })()
+    : null;
 
   return (
     <div
@@ -154,18 +169,19 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
               <Moon className="w-4 h-4 text-indigo-400" />
             </div>
             <div>
-              <h3 className="font-display text-base font-semibold tracking-tight text-white">
+              <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white">
                 Restorative Sleep
               </h3>
-              <span className="label-scandi text-indigo-300/70 block mt-0.5">
-                Replaces red unlogged time
+              <span className="label-scandi text-indigo-300/75 block mt-0.5">
+                Anytime Sleep & Nap Logger
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {todaySleepEntry && onUndoSleep && (
               <button
+                type="button"
                 onClick={() => onUndoSleep(todaySleepEntry.id)}
                 className="flex items-center gap-1 text-[11px] font-mono text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
                 title="Undo logged sleep"
@@ -174,7 +190,22 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
                 <span>Undo</span>
               </button>
             )}
+            {onOpenProgress && (
+              <button
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  onOpenProgress();
+                }}
+                className="p-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 hover:border-indigo-400/60 text-indigo-300 hover:text-white transition-all cursor-pointer"
+                title="View Sleep progress graph (Hours, Weeks, Months, Years)"
+                aria-label="View Sleep progress graph"
+              >
+                <BarChart2 className="w-3.5 h-3.5" />
+              </button>
+            )}
             <button
+              type="button"
               onClick={() => {
                 playDeskClick();
                 setShowSleepModal((prev) => !prev);
@@ -206,8 +237,12 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
           {/* Active Live Sleep Timer or Status Badge */}
           {isSleepActive ? (
             <div className="text-right">
-              <span className="label-scandi text-indigo-300 animate-pulse block">
-                Sleeping Active
+              <span
+                className={`label-scandi block ${
+                  isSessionPaused ? 'text-amber-300' : 'text-indigo-300 animate-pulse'
+                }`}
+              >
+                {isSessionPaused ? 'Sleep Paused' : 'Sleeping Active'}
               </span>
               <div className="text-lg font-mono font-bold text-indigo-200 tabular-nums">
                 {formatTimer(activeSleepDurationSeconds)}
@@ -232,8 +267,8 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
         </div>
       </div>
 
-      {/* Footer Info / Live Sleep Toggle */}
-      <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs font-mono text-zinc-400 relative">
+      {/* Footer Info / Live Sleep Toggle + Pause/Resume */}
+      <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2 text-xs font-mono text-zinc-400 relative">
         <span className="text-[11px] text-zinc-400">
           {hoursSlept >= targetHours ? (
             <span className="text-indigo-300 flex items-center gap-1 font-semibold">
@@ -245,17 +280,48 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
         </span>
 
         {isSleepActive ? (
-          <button
-            onClick={() => {
-              playDeskClick();
-              onStopSleep();
-            }}
-            className="interactive-press px-3 py-1 bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white rounded font-medium text-xs transition-all cursor-pointer"
-          >
-            Wake Up (Stop Sleep)
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onPauseSession && onResumeSession && (
+              <button
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  if (isSessionPaused) onResumeSession();
+                  else onPauseSession();
+                }}
+                className={`interactive-press flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold border transition-all cursor-pointer ${
+                  isSessionPaused
+                    ? 'bg-emerald-400 text-zinc-950 border-emerald-300'
+                    : 'bg-amber-500/15 text-amber-200 border-amber-400/50 hover:bg-amber-500/25'
+                }`}
+              >
+                {isSessionPaused ? (
+                  <>
+                    <Play className="w-3 h-3 fill-current" />
+                    <span>Resume</span>
+                  </>
+                ) : (
+                  <>
+                    <Pause className="w-3 h-3" />
+                    <span>Pause</span>
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                playDeskClick();
+                onStopSleep();
+              }}
+              className="interactive-press px-3 py-1 bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white rounded font-medium text-xs transition-all cursor-pointer"
+            >
+              Wake Up
+            </button>
+          </div>
         ) : (
           <button
+            type="button"
             onClick={() => {
               playDeskClick();
               onStartSleep();
@@ -276,6 +342,7 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
               Log Sleep Window ({selectedDate})
             </span>
             <button
+              type="button"
               onClick={() => setShowSleepModal(false)}
               className="text-zinc-500 hover:text-zinc-300 cursor-pointer"
             >
@@ -284,7 +351,7 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
           </div>
 
           <p className="text-[11px] font-sans text-zinc-400">
-            Log your sleep hours to replace red lost time with restorative sleep in the timeline and charts.
+            Log any sleep or nap window (e.g. 01:00 → 10:00, 23:00 → 07:00, or daytime rest) on {selectedDate}.
           </p>
 
           <div className="grid grid-cols-3 gap-2">
@@ -302,10 +369,10 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
               <input
                 type="number"
                 step="0.5"
-                min="1"
-                max="14"
+                min="0.5"
+                max="16"
                 value={sleepDurationHours}
-                onChange={(e) => handleDurationChange(parseFloat(e.target.value) || 8)}
+                onChange={(e) => handleDurationChange(parseFloat(e.target.value) || 1)}
                 className="w-full px-2 py-1 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
               />
             </div>
@@ -325,6 +392,13 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
             <span className="text-zinc-500">Presets:</span>
             <button
               type="button"
+              onClick={() => handleApplyPreset('01:00', 9)}
+              className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+            >
+              01:00 → 10:00 (9h)
+            </button>
+            <button
+              type="button"
               onClick={() => handleApplyPreset('23:00', 8)}
               className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
             >
@@ -339,12 +413,24 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => handleApplyPreset('22:30', 8.5)}
+              onClick={() => handleApplyPreset('14:00', 1.5)}
               className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
             >
-              22:30 → 07:00 (8.5h)
+              14:00 → 15:30 (Nap)
             </button>
           </div>
+
+          {todaySleepEntry && (
+            <label className="flex items-center gap-2 text-[11px] font-sans text-zinc-300 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={replaceExisting}
+                onChange={(e) => setReplaceExisting(e.target.checked)}
+                className="accent-indigo-400 rounded cursor-pointer"
+              />
+              <span>Replace existing sleep log instead of adding another window</span>
+            </label>
+          )}
 
           <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
             <span className="text-emerald-400 text-[11px]">

@@ -1,4 +1,4 @@
-import { Check, Palette, Sparkles, Type } from 'lucide-react';
+import { Check, Crown, Palette, Sparkles, Type } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { StudioTextStyleId, StudioThemeId } from '../types/tracker';
 
@@ -6,6 +6,7 @@ export interface StudioTextStyleDefinition {
   id: Exclude<StudioTextStyleId, 'auto'>;
   name: string;
   vibe: string;
+  category?: 'classic' | 'royal' | 'crazy';
   previewFont: string;
   previewStyle?: React.CSSProperties;
 }
@@ -15,12 +16,14 @@ export const STUDIO_TEXT_STYLES: StudioTextStyleDefinition[] = [
     id: 'minimal',
     name: 'Neo-Minimal',
     vibe: 'Playfair + Jakarta',
+    category: 'classic',
     previewFont: "'Playfair Display', Georgia, serif",
   },
   {
     id: 'luxury',
     name: 'Imperial Serif',
     vibe: 'Cormorant + Outfit',
+    category: 'classic',
     previewFont: "'Cormorant Garamond', Georgia, serif",
     previewStyle: { fontStyle: 'italic', fontWeight: 700 },
   },
@@ -28,6 +31,7 @@ export const STUDIO_TEXT_STYLES: StudioTextStyleDefinition[] = [
     id: 'aurora',
     name: 'Studio Futura',
     vibe: 'Syne + Space Grotesk',
+    category: 'classic',
     previewFont: "'Syne', sans-serif",
     previewStyle: { fontWeight: 700 },
   },
@@ -35,6 +39,7 @@ export const STUDIO_TEXT_STYLES: StudioTextStyleDefinition[] = [
     id: 'blueprint',
     name: 'Technical HUD',
     vibe: 'IBM Plex Mono',
+    category: 'classic',
     previewFont: "'IBM Plex Mono', monospace",
     previewStyle: { textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 },
   },
@@ -42,6 +47,7 @@ export const STUDIO_TEXT_STYLES: StudioTextStyleDefinition[] = [
     id: 'zen',
     name: 'Sakura Serif',
     vibe: 'Fraunces + Nunito',
+    category: 'classic',
     previewFont: "'Fraunces', Georgia, serif",
     previewStyle: { fontWeight: 600 },
   },
@@ -49,8 +55,41 @@ export const STUDIO_TEXT_STYLES: StudioTextStyleDefinition[] = [
     id: 'neopop',
     name: 'Bold Neo-Pop',
     vibe: 'Syne Heavy + Grotesk',
+    category: 'crazy',
     previewFont: "'Syne', sans-serif",
     previewStyle: { fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.02em' },
+  },
+  {
+    id: 'royal',
+    name: 'Royal Crown',
+    vibe: 'Cinzel Decorative + Lora',
+    category: 'royal',
+    previewFont: "'Cinzel Decorative', 'Cinzel', Georgia, serif",
+    previewStyle: { fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' },
+  },
+  {
+    id: 'monarch',
+    name: 'Monarch Velvet',
+    vibe: 'Cinzel + Outfit',
+    category: 'royal',
+    previewFont: "'Cinzel', Georgia, serif",
+    previewStyle: { fontWeight: 700, letterSpacing: '0.06em' },
+  },
+  {
+    id: 'orbit',
+    name: 'Cyber Orbit',
+    vibe: 'Orbitron + Fira Code',
+    category: 'crazy',
+    previewFont: "'Orbitron', sans-serif",
+    previewStyle: { fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' },
+  },
+  {
+    id: 'crazy',
+    name: 'Crazy Poster',
+    vibe: 'Bungee + Righteous',
+    category: 'crazy',
+    previewFont: "'Bungee', 'Righteous', sans-serif",
+    previewStyle: { fontWeight: 400 },
   },
 ];
 
@@ -61,6 +100,8 @@ export const THEME_DEFAULT_TEXT_STYLE: Record<StudioThemeId, Exclude<StudioTextS
   cyan: 'blueprint',
   rose: 'zen',
   solar: 'neopop',
+  royal: 'royal',
+  synth: 'orbit',
 };
 
 interface StudioThemeDefinition {
@@ -101,6 +142,20 @@ export const STUDIO_THEMES: StudioThemeDefinition[] = [
     pairedTextStyle: 'luxury',
   },
   {
+    id: 'royal',
+    name: 'Royal Sovereign',
+    personality: 'Burgundy Crown & Gold',
+    description: 'Velvet burgundy diamond lattice with engraved Royal Crown serif.',
+    dotClass: 'bg-yellow-300 shadow-[0_0_12px_#fcd34d]',
+    previewBg: '#12070e',
+    previewStyle: {
+      backgroundImage:
+        'repeating-linear-gradient(45deg, rgba(252, 211, 77, 0.12) 0px, rgba(252, 211, 77, 0.12) 1px, transparent 1px, transparent 11px), repeating-linear-gradient(-45deg, rgba(252, 211, 77, 0.12) 0px, rgba(252, 211, 77, 0.12) 1px, transparent 1px, transparent 11px)',
+    },
+    accentText: 'text-amber-200',
+    pairedTextStyle: 'royal',
+  },
+  {
     id: 'violet',
     name: 'Aurora Glass',
     personality: 'Frosted Creative Flow',
@@ -128,6 +183,21 @@ export const STUDIO_THEMES: StudioThemeDefinition[] = [
     },
     accentText: 'text-cyan-300',
     pairedTextStyle: 'blueprint',
+  },
+  {
+    id: 'synth',
+    name: 'Hyper Synthwave',
+    personality: 'Crazy Neon Arcade',
+    description: 'Electric magenta-cyan grid with sci-fi Cyber Orbit display type.',
+    dotClass: 'bg-pink-400 shadow-[0_0_12px_#f472b6]',
+    previewBg: '#070514',
+    previewStyle: {
+      backgroundImage:
+        'linear-gradient(to bottom, rgba(236, 72, 153, 0.22) 1px, transparent 1px), linear-gradient(to right, rgba(34, 211, 238, 0.2) 1px, transparent 1px)',
+      backgroundSize: '14px 10px',
+    },
+    accentText: 'text-pink-300',
+    pairedTextStyle: 'orbit',
   },
   {
     id: 'rose',
@@ -194,7 +264,7 @@ export const StudioDesignPicker: React.FC<StudioDesignPickerProps> = ({
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-2 pl-3 border-l border-zinc-800 shrink-0">
-      {/* Quick 6 Color + Font Personality Swatches */}
+      {/* Quick Studio Light Swatches (Smooth Colour Shifting) */}
       <div className="flex items-center gap-1.5" role="group" aria-label="Studio Design Theme">
         {STUDIO_THEMES.map((theme) => {
           const pairedFont = STUDIO_TEXT_STYLES.find((s) => s.id === theme.pairedTextStyle);
@@ -205,9 +275,9 @@ export const StudioDesignPicker: React.FC<StudioDesignPickerProps> = ({
               onClick={() => onSelectTheme(theme.id)}
               title={`${theme.name} — ${theme.personality} (${pairedFont?.name || ''})`}
               aria-label={`Switch theme: ${theme.name}`}
-              className={`interactive-press w-4 h-4 rounded-full transition-all cursor-pointer ${theme.dotClass} ${
+              className={`interactive-press w-3.5 h-3.5 rounded-full transition-all duration-500 cursor-pointer ${theme.dotClass} ${
                 currentTheme === theme.id
-                  ? 'ring-2 ring-white ring-offset-2 ring-offset-[#101014] scale-110 opacity-100'
+                  ? 'ring-2 ring-white ring-offset-2 ring-offset-[#101014] scale-115 opacity-100'
                   : 'opacity-55 hover:opacity-95 hover:scale-110'
               }`}
             />
@@ -215,12 +285,12 @@ export const StudioDesignPicker: React.FC<StudioDesignPickerProps> = ({
         })}
       </div>
 
-      {/* Bundled Studio Light / Design & Text Style Gallery Trigger Button */}
+      {/* Bundled Studio Light / Design & Royal+Crazy Text Style Trigger Button */}
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        className="interactive-press flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-[11px] font-sans text-zinc-200 transition-colors cursor-pointer whitespace-nowrap"
-        title={`Design: ${activeDef.name} · Text: ${activeTextDef.name}`}
+        className="interactive-press flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-[11px] font-sans text-zinc-200 transition-all duration-300 cursor-pointer whitespace-nowrap"
+        title={`Studio Light & Fonts — ${activeDef.name} · ${activeTextDef.name}`}
       >
         <Palette className="w-3.5 h-3.5 text-zinc-300" />
         <span className="hidden md:inline font-medium">{activeDef.name}</span>
@@ -234,19 +304,19 @@ export const StudioDesignPicker: React.FC<StudioDesignPickerProps> = ({
         <span className="md:hidden font-medium">Designs</span>
       </button>
 
-      {/* Rich Theme, Background & Bundled Text Style Gallery Popover */}
+      {/* Rich Theme, Background & Bundled Royal/Crazy Font Gallery Popover */}
       {isOpen && (
-        <div className="fixed sm:absolute right-3 sm:right-0 top-[118px] sm:top-full sm:mt-3 w-[calc(100vw-24px)] sm:w-[410px] max-h-[78vh] overflow-y-auto z-50 p-4 rounded-2xl bg-[#111116]/98 backdrop-blur-xl border border-zinc-700/80 shadow-2xl shadow-black/90 space-y-4 animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="fixed sm:absolute right-3 sm:right-0 top-[118px] sm:top-full sm:mt-3 w-[calc(100vw-24px)] sm:w-[440px] max-h-[80vh] overflow-y-auto z-50 p-4 rounded-2xl bg-[#111116]/98 backdrop-blur-xl border border-zinc-700/80 shadow-2xl shadow-black/90 space-y-4 animate-in fade-in slide-in-from-top-2 duration-150">
           <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
             <div>
               <div className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                 <h4 className="font-display text-sm font-semibold text-white">
-                  Studio Designs & Text Styles
+                  Studio Light, Designs & Royal Fonts
                 </h4>
               </div>
               <p className="text-[11px] text-zinc-400 mt-0.5">
-                Each design pairs its own colors, background, and signature typography — or mix & match below.
+                Smooth ambient colour shifting with minimalist, royal, and bold crazy typography styles.
               </p>
             </div>
           </div>
@@ -260,10 +330,8 @@ export const StudioDesignPicker: React.FC<StudioDesignPickerProps> = ({
                 <button
                   key={theme.id}
                   type="button"
-                  onClick={() => {
-                    onSelectTheme(theme.id);
-                  }}
-                  className={`interactive-press w-full text-left p-2.5 rounded-xl border transition-all flex items-center gap-3 cursor-pointer ${
+                  onClick={() => onSelectTheme(theme.id)}
+                  className={`interactive-press w-full text-left p-2.5 rounded-xl border transition-all duration-300 flex items-center gap-3 cursor-pointer ${
                     isSelected
                       ? 'bg-zinc-900 border-white/60 shadow-lg'
                       : 'bg-zinc-950/70 border-zinc-800/80 hover:border-zinc-600 hover:bg-zinc-900/70'
@@ -316,13 +384,13 @@ export const StudioDesignPicker: React.FC<StudioDesignPickerProps> = ({
             })}
           </div>
 
-          {/* 2. Bundled Text Style Selector (Inside the Same Studio Light Popover) */}
+          {/* 2. Bundled Text Style Selector (Classic + Royal + Crazy Fonts) */}
           <div className="pt-3 border-t border-zinc-800 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <Type className="w-3.5 h-3.5 text-zinc-300" />
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">
-                  Text Style Option
+                  Text Styles (Classic, Royal & Crazy)
                 </span>
               </div>
               <button
@@ -338,7 +406,7 @@ export const StudioDesignPicker: React.FC<StudioDesignPickerProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {STUDIO_TEXT_STYLES.map((style) => {
                 const isExplicitSelected = currentTextStyle === style.id;
                 const isActive = resolvedStyleId === style.id;
@@ -347,7 +415,7 @@ export const StudioDesignPicker: React.FC<StudioDesignPickerProps> = ({
                     key={style.id}
                     type="button"
                     onClick={() => onSelectTextStyle(style.id)}
-                    className={`interactive-press p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                    className={`interactive-press p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
                       isExplicitSelected
                         ? 'bg-zinc-800 border-white/60 text-white'
                         : isActive
@@ -357,16 +425,25 @@ export const StudioDesignPicker: React.FC<StudioDesignPickerProps> = ({
                   >
                     <div className="flex items-center justify-between gap-1">
                       <span
-                        className="text-sm leading-tight text-zinc-100"
+                        className="text-sm leading-tight text-zinc-100 flex items-center gap-1"
                         style={{ fontFamily: style.previewFont, ...style.previewStyle }}
                       >
                         Aa
+                        {style.category === 'royal' && (
+                          <Crown className="w-3 h-3 text-amber-300 inline" />
+                        )}
                       </span>
-                      {isActive && (
-                        <span className="text-[9px] font-mono text-emerald-400">
-                          {isExplicitSelected ? 'SET' : 'AUTO'}
-                        </span>
-                      )}
+                      <span className="text-[9px] font-mono uppercase tracking-wider">
+                        {isActive ? (
+                          <span className="text-emerald-400">
+                            {isExplicitSelected ? 'SET' : 'AUTO'}
+                          </span>
+                        ) : style.category === 'royal' ? (
+                          <span className="text-amber-300/80">Royal</span>
+                        ) : style.category === 'crazy' ? (
+                          <span className="text-pink-300/80">Crazy</span>
+                        ) : null}
+                      </span>
                     </div>
                     <div className="text-[11px] font-medium truncate mt-1">{style.name}</div>
                     <div className="text-[9px] text-zinc-500 truncate">{style.vibe}</div>

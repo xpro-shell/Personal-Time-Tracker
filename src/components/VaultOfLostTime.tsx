@@ -8,9 +8,10 @@ import {
   History,
   X,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { playDeskClick, playEarnedChime } from '../lib/audioAlert';
 import { VaultEntry } from '../types/tracker';
+import { formatLocalYMD } from './DateNavigator';
 import { UnreconciledPastDay } from './PastDayAuditBanner';
 
 interface VaultOfLostTimeProps {
@@ -22,6 +23,27 @@ interface VaultOfLostTimeProps {
   onUpdateVaultNote?: (entryId: string, newReason: string) => void;
 }
 
+type VaultScope = 'week' | 'past' | 'total';
+
+function getCurrentWeekRange(): {
+  weekStartYmd: string;
+  weekEndYmd: string;
+  weekLabel: string;
+} {
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun .. 6=Sat
+  const diffToMonday = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+  const fmt = (d: Date) =>
+    d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  return {
+    weekStartYmd: formatLocalYMD(monday),
+    weekEndYmd: formatLocalYMD(sunday),
+    weekLabel: `${fmt(monday)} – ${fmt(sunday)}`,
+  };
+}
+
 export const VaultOfLostTime: React.FC<VaultOfLostTimeProps> = ({
   vaultEntries,
   unreconciledDays = [],
@@ -30,7 +52,59 @@ export const VaultOfLostTime: React.FC<VaultOfLostTimeProps> = ({
   onCarryForwardVaultEntry,
   onUpdateVaultNote,
 }) => {
-  const totalHoursLost = vaultEntries.reduce((acc, curr) => acc + curr.hoursLost, 0);
+  // Default to "This Week" lost time, with options for Past Vault and Total All-Time
+  const [vaultScope, setVaultScope] = useState<VaultScope>('week');
+
+  const { weekStartYmd, weekEndYmd, weekLabel } = useMemo(() => getCurrentWeekRange(), []);
+
+  const { thisWeekEntries, pastEntries, thisWeekHours, pastHours, totalHoursLost } = useMemo(() => {
+    const weekList: VaultEntry[] = [];
+    const pastList: VaultEntry[] = [];
+    let weekHrs = 0;
+    let pastHrs = 0;
+    let totalHrs = 0;
+
+    vaultEntries.forEach((entry) => {
+      const hrs = entry.hoursLost || 0;
+      totalHrs += hrs;
+      let normalizedYmd = entry.date || '';
+      if (normalizedYmd.length > 10) {
+        const parsed = new Date(normalizedYmd);
+        if (!isNaN(parsed.getTime())) {
+          normalizedYmd = formatLocalYMD(parsed);
+        }
+      }
+      if (normalizedYmd >= weekStartYmd && normalizedYmd <= weekEndYmd) {
+        weekList.push(entry);
+        weekHrs += hrs;
+      } else {
+        pastList.push(entry);
+        pastHrs += hrs;
+      }
+    });
+
+    return {
+      thisWeekEntries: weekList,
+      pastEntries: pastList,
+      thisWeekHours: Math.round(weekHrs * 10) / 10,
+      pastHours: Math.round(pastHrs * 10) / 10,
+      totalHoursLost: Math.round(totalHrs * 10) / 10,
+    };
+  }, [vaultEntries, weekStartYmd, weekEndYmd]);
+
+  const displayedEntries =
+    vaultScope === 'week'
+      ? thisWeekEntries
+      : vaultScope === 'past'
+      ? pastEntries
+      : vaultEntries;
+
+  const displayedHours =
+    vaultScope === 'week'
+      ? thisWeekHours
+      : vaultScope === 'past'
+      ? pastHours
+      : totalHoursLost;
 
   // Interactive state for editing reason or carrying forward an archived Vault entry
   const [activeVaultId, setActiveVaultId] = useState<string | null>(null);
@@ -94,74 +168,135 @@ export const VaultOfLostTime: React.FC<VaultOfLostTimeProps> = ({
   return (
     <div className="space-y-6">
       {/* Overview Card */}
-      <div className="p-6 rounded-2xl bg-[#121215] border border-zinc-800/90">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-zinc-900 border border-zinc-800">
+      <div className="studio-card p-6 rounded-2xl bg-[#121215] border border-zinc-800/90 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800">
               <Archive className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h2 className="font-display text-xl sm:text-2xl font-semibold tracking-tight text-white">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
                 Vault of Lost Time
               </h2>
-              <p className="label-scandi text-zinc-500 mt-0.5">
-                Write-off archive & interactive deficit carry-forward recovery
+              <p className="label-scandi text-zinc-400 mt-1">
+                Default: This Week ({weekLabel}) · Switch to Past or Total anytime
               </p>
             </div>
           </div>
-          <span className="text-xs font-mono text-emerald-400 font-semibold">
-            {vaultEntries.length} archived entries
-          </span>
+
+          {/* Scope Switcher: This Week (Default) | Past Vault | Total All-Time */}
+          <div className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-mono shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                playDeskClick();
+                setVaultScope('week');
+              }}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                vaultScope === 'week'
+                  ? 'bg-emerald-400 text-zinc-950 font-bold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              This Week ({thisWeekHours}h)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playDeskClick();
+                setVaultScope('past');
+              }}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                vaultScope === 'past'
+                  ? 'bg-amber-400 text-zinc-950 font-bold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Past Vault ({pastHours}h)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playDeskClick();
+                setVaultScope('total');
+              }}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                vaultScope === 'total'
+                  ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Total ({totalHoursLost}h)
+            </button>
+          </div>
         </div>
 
         <p className="text-xs font-sans text-zinc-300/90 max-w-3xl leading-relaxed">
-          Uncompleted focus hours are sealed here so tomorrow stays clean. Change your mind anytime—write an honest reason directly inside any archived entry or pending day below to reclaim and carry those hours forward into your active Study Quota.
+          Uncompleted focus hours are sealed here so tomorrow stays clean. By default, this ledger highlights <strong className="text-emerald-300">This Week&apos;s</strong> lost time—switch tabs above to inspect <strong className="text-amber-300">Past Vault</strong> history or <strong className="text-white">Total All-Time</strong> hours, and write an honest reason anytime to carry hours forward.
         </p>
 
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 bg-zinc-950/80 border border-zinc-800 rounded-xl">
-            <span className="label-scandi text-zinc-500 block mb-1.5">
-              Total Hours Written Off
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 bg-zinc-950/80 border border-emerald-500/35 rounded-xl">
+            <span className="label-scandi text-emerald-400 block mb-1.5">
+              {vaultScope === 'week'
+                ? 'This Week Lost Time'
+                : vaultScope === 'past'
+                ? 'Past Vault Lost Time'
+                : 'Total All-Time Lost'}
             </span>
-            <div className="text-2xl font-bold font-mono text-white tabular-nums">
-              {Math.round(totalHoursLost * 10) / 10} hours
+            <div className="text-2xl sm:text-3xl font-bold font-mono text-white tabular-nums">
+              {displayedHours} hours
             </div>
-            <span className="text-[11px] font-sans text-zinc-500">Sealed or recoverable with reason</span>
+            <span className="text-[11px] font-sans text-zinc-400">
+              {displayedEntries.length} archived {displayedEntries.length === 1 ? 'entry' : 'entries'} in view
+            </span>
           </div>
 
           <div className="p-4 bg-zinc-950/80 border border-zinc-800 rounded-xl">
-            <span className="label-scandi text-zinc-500 block mb-1.5">
-              Archived Sessions
+            <span className="label-scandi text-zinc-400 block mb-1.5">
+              Vault Breakdown
             </span>
-            <div className="text-2xl font-bold font-mono text-white tabular-nums">
-              {vaultEntries.length}
+            <div className="space-y-1 text-xs font-mono">
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-400">This Week:</span>
+                <span className="text-emerald-300 font-bold">{thisWeekHours}h ({thisWeekEntries.length})</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-400">Past Weeks:</span>
+                <span className="text-amber-300 font-bold">{pastHours}h ({pastEntries.length})</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-zinc-800/80 pt-1">
+                <span className="text-zinc-300">Grand Total:</span>
+                <span className="text-white font-bold">{totalHoursLost}h ({vaultEntries.length})</span>
+              </div>
             </div>
-            <span className="text-[11px] font-sans text-zinc-500">Unreconciled days in vault</span>
           </div>
 
-          <div className="p-4 bg-zinc-950/80 border border-emerald-500/30 rounded-xl">
+          <div className="p-4 bg-zinc-950/80 border border-zinc-800 rounded-xl">
             <span className="label-scandi text-emerald-400 block mb-1.5">
               Recovery Rule
             </span>
             <div className="text-xs font-mono text-zinc-100 font-semibold mt-1">
               Write Reason → Carry Forward
             </div>
-            <span className="text-[11px] font-sans text-zinc-500">Reclaim lost hours into focus goal</span>
+            <span className="text-[11px] font-sans text-zinc-400 block mt-1">
+              Reclaim lost hours back into your active Study Quota
+            </span>
           </div>
         </div>
       </div>
 
       {/* Pending Unarchived Past Days */}
       {unreconciledDays.length > 0 && (
-        <div className="p-5 rounded-2xl bg-[#121215] border border-zinc-700 space-y-3">
+        <div className="studio-card p-5 rounded-2xl bg-[#121215] border border-zinc-700 space-y-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-emerald-400 shrink-0" />
-            <h3 className="font-display text-base font-semibold tracking-tight text-white">
-              Pending Write-Offs: Unlogged Past Weekday Shortfalls
+            <h3 className="font-display text-lg font-bold tracking-tight text-white">
+              Pending Write-Offs: This Week&apos;s Unlogged Weekday Shortfalls
             </h3>
           </div>
           <p className="text-xs text-zinc-400 font-sans">
-            These past weekdays have uncompleted study quotas. Write a reason to carry the shortfall forward into your active focus target, or archive it into the Vault.
+            These weekdays have uncompleted study quotas. Write a reason to carry the shortfall forward into your active focus target, or archive it into the Vault.
           </p>
 
           <div className="space-y-3">
@@ -259,19 +394,23 @@ export const VaultOfLostTime: React.FC<VaultOfLostTimeProps> = ({
       )}
 
       {/* Vault Archive Ledger with Write Reason & Carry Forward */}
-      <div className="p-6 rounded-2xl bg-[#121215] border border-zinc-800/80">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-semibold tracking-tight text-white">
-            Historical Write-Off Ledger
+      <div className="studio-card p-6 rounded-2xl bg-[#121215] border border-zinc-800/80">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white">
+            {vaultScope === 'week'
+              ? `This Week's Write-Off Ledger (${thisWeekEntries.length})`
+              : vaultScope === 'past'
+              ? `Past Vault Archive (${pastEntries.length})`
+              : `Complete All-Time Vault Ledger (${vaultEntries.length})`}
           </h3>
           <span className="label-scandi text-zinc-500">
             Write a reason to reclaim & carry forward any entry
           </span>
         </div>
 
-        {vaultEntries.length > 0 ? (
+        {displayedEntries.length > 0 ? (
           <div className="space-y-3">
-            {vaultEntries.map((entry) => {
+            {displayedEntries.map((entry) => {
               const isSelected = activeVaultId === entry.id;
               return (
                 <div
@@ -393,7 +532,11 @@ export const VaultOfLostTime: React.FC<VaultOfLostTimeProps> = ({
           <div className="text-center py-12 border border-dashed border-zinc-800 rounded-xl">
             <History className="w-8 h-8 text-emerald-400/50 mx-auto mb-2" />
             <p className="text-xs font-sans text-zinc-400">
-              The Vault of Lost Time is clean. All study debt has been either completed or carries verified reasons.
+              {vaultScope === 'week'
+                ? 'No lost time archived this week yet. Check Past Vault or Total to inspect earlier records.'
+                : vaultScope === 'past'
+                ? 'No past archived entries before this week.'
+                : 'The Vault of Lost Time is clean. All study debt has been either completed or carries verified reasons.'}
             </p>
           </div>
         )}

@@ -14,6 +14,15 @@ export function formatLocalYMD(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+export function isSameLocalDate(isoOrDateStr: string | undefined, targetYmd: string): boolean {
+  if (!isoOrDateStr) return false;
+  const d = new Date(isoOrDateStr);
+  if (!isNaN(d.getTime())) {
+    return formatLocalYMD(d) === targetYmd;
+  }
+  return isoOrDateStr.startsWith(targetYmd);
+}
+
 export const DateNavigator: React.FC<DateNavigatorProps> = ({
   selectedDate,
   onSelectDate,
@@ -64,7 +73,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
 
         <div className="flex items-center gap-2.5 px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg">
           <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="font-display text-sm sm:text-base font-semibold text-white tracking-tight">
+          <span className="font-mono text-xs sm:text-sm font-medium text-zinc-200 tracking-tight">
             {formattedDate}
           </span>
           {isWeekend ? (

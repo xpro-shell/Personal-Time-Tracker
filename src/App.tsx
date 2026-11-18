@@ -4,7 +4,7 @@ import { AchievementNewsTicker } from './components/AchievementNewsTicker';
 import { AchievementsTab } from './components/AchievementsTab';
 import { BreakBankCard } from './components/BreakBankCard';
 import { CustomHabitsManager, DEFAULT_HABITS } from './components/CustomHabitsManager';
-import { DateNavigator, formatLocalYMD } from './components/DateNavigator';
+import { DateNavigator, formatLocalYMD, isSameLocalDate } from './components/DateNavigator';
 import { DailyCompletionStatus, DayCloseModal } from './components/DayCloseModal';
 import { DeskQuickLogger } from './components/DeskQuickLogger';
 import { HabitCard } from './components/HabitCard';
@@ -21,8 +21,15 @@ import { RobotTutorialModal } from './components/RobotTutorialModal';
 import { SleepTrackerCard } from './components/SleepTrackerCard';
 import { StudioDesignPicker, THEME_DEFAULT_TEXT_STYLE } from './components/StudioDesignPicker';
 import { StudyQuotaCard } from './components/StudyQuotaCard';
-import { TimelineHeatmap } from './components/TimelineHeatmap';
+import { ActivityProgressModal } from './components/ActivityProgressModal';
+import { ActivityProgressStudio } from './components/ActivityProgressStudio';
 import { TopBar } from './components/TopBar';
+import {
+  CURRENT_APP_VERSION,
+  SEEN_VERSION_STORAGE_KEY,
+  WhatsNewModal,
+} from './components/WhatsNewModal';
+import { ActiveDeskTelemetry, ActivityFilterId, ProgressTemplateId } from './lib/progressAnalytics';
 import { VaultOfLostTime } from './components/VaultOfLostTime';
 import { useLocalProfile } from './context/LocalProfileContext';
 import { playDeskClick, playEarnedChime } from './lib/audioAlert';
@@ -45,6 +52,9 @@ interface PersistedAppState {
   activeSession: ActiveSession | null;
   isDeskLoggedIn: boolean;
   deskLoginTimestamp: string | null;
+  isDeskTimerPaused?: boolean;
+  deskPausedAt?: string | null;
+  deskAccumulatedPausedMs?: number;
   studyDeficitCarryForwardMinutes: number;
   bankedCarryForwardMinutes: number;
   carriedDates: string[];
@@ -54,10 +64,23 @@ const getDefaultAppState = (): PersistedAppState => ({
   activeSession: null,
   isDeskLoggedIn: true,
   deskLoginTimestamp: new Date().toISOString(),
+  isDeskTimerPaused: false,
+  deskPausedAt: null,
+  deskAccumulatedPausedMs: 0,
   studyDeficitCarryForwardMinutes: 0,
   bankedCarryForwardMinutes: 0,
   carriedDates: [],
 });
+
+function getSessionElapsedMs(session: ActiveSession | null, nowMs = Date.now()): number {
+  if (!session) return 0;
+  const startMs = new Date(session.startTime).getTime();
+  if (isNaN(startMs)) return 0;
+  const endMs =
+    session.isPaused && session.pausedAt ? new Date(session.pausedAt).getTime() : nowMs;
+  const pausedMs = session.accumulatedPausedMs || 0;
+  return Math.max(0, endMs - startMs - pausedMs);
+}
 
 const DEFAULT_TICKER_SETTINGS: TickerSettings = {
   intervalSeconds: 120, // Default every 2 minutes
@@ -109,6 +132,16 @@ export default function App() {
   const [deskLoginTimestamp, setDeskLoginTimestamp] = useState<string | null>(
     initialAppState.deskLoginTimestamp || (initialAppState.isDeskLoggedIn ? new Date().toISOString() : null)
   );
+  const [isDeskTimerPaused, setIsDeskTimerPaused] = useState<boolean>(
+    !!initialAppState.isDeskTimerPaused
+  );
+  const [deskPausedAt, setDeskPausedAt] = useState<string | null>(
+    initialAppState.deskPausedAt || null
+  );
+  const [deskAccumulatedPausedMs, setDeskAccumulatedPausedMs] = useState<number>(
+    initialAppState.deskAccumulatedPausedMs || 0
+  );
+  const [deskElapsedSeconds, setDeskElapsedSeconds] = useState<number>(0);
   const [studyDeficitCarryForwardMinutes, setStudyDeficitCarryForwardMinutes] = useState<number>(
     initialAppState.studyDeficitCarryForwardMinutes
   );
@@ -127,12 +160,13 @@ export default function App() {
   const [hourlyReviewQueue, setHourlyReviewQueue] = useState<HourlyReviewItem[]>(() =>
     readLocalSync<HourlyReviewItem[]>(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, [])
   );
-  const [hourlyReminderPrefs, setHourlyReminderPrefs] = useState<HourlyReminderPrefs>(() =>
-    readLocalSync<HourlyReminderPrefs>(
+  const [hourlyReminderPrefs, setHourlyReminderPrefs] = useState<HourlyReminderPrefs>(() => ({
+    ...DEFAULT_HOURLY_REMINDER_PREFS,
+    ...readLocalSync<Partial<HourlyReminderPrefs>>(
       STORAGE_KEYS.HOURLY_REMINDER_PREFS,
       DEFAULT_HOURLY_REMINDER_PREFS
-    )
-  );
+    ),
+  }));
   const [pendingHourPrompt, setPendingHourPrompt] = useState<PendingHourPrompt | null>(null);
   const [secondsUntilNextReminder, setSecondsUntilNextReminder] = useState<number>(3600);
   const [toFillGaps, setToFillGaps] = useState<GapItem[]>(() =>
@@ -152,14 +186,26 @@ export default function App() {
 
   // Tutorial preferences (show on startup unless user clicked Do Not Show Again)
   const initialTutorialPrefs = useMemo(
-    () => readLocalSync<TutorialPrefs>(STORAGE_KEYS.TUTORIAL_PREFS, DEFAULT_TUTORIAL_PREFS),
+    () => ({
+      ...DEFAULT_TUTORIAL_PREFS,
+      ...readLocalSync<Partial<TutorialPrefs>>(STORAGE_KEYS.TUTORIAL_PREFS, DEFAULT_TUTORIAL_PREFS),
+    }),
     []
   );
   const [tutorialPrefs, setTutorialPrefs] = useState<TutorialPrefs>(initialTutorialPrefs);
   const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(false);
   const pendingTutorialAfterIntroRef = useRef<boolean>(!initialTutorialPrefs.doNotShowAgain);
 
-  // Modals
+  // Modals & Version Update Changelog
+  const initialHasUnseenUpdate = useMemo(() => {
+    try {
+      return localStorage.getItem(SEEN_VERSION_STORAGE_KEY) !== CURRENT_APP_VERSION;
+    } catch {
+      return true;
+    }
+  }, []);
+  const pendingWhatsNewAfterIntroRef = useRef<boolean>(initialHasUnseenUpdate);
+  const [isWhatsNewOpen, setIsWhatsNewOpen] = useState<boolean>(false);
   const [isDayCloseOpen, setIsDayCloseOpen] = useState<boolean>(false);
   const [isResetInfoOpen, setIsResetInfoOpen] = useState<boolean>(false);
   const [isHabitsManagerOpen, setIsHabitsManagerOpen] = useState(false);
@@ -184,7 +230,9 @@ export default function App() {
         saved === 'violet' ||
         saved === 'cyan' ||
         saved === 'rose' ||
-        saved === 'solar'
+        saved === 'solar' ||
+        saved === 'royal' ||
+        saved === 'synth'
       ) {
         return saved;
       }
@@ -204,7 +252,11 @@ export default function App() {
         saved === 'aurora' ||
         saved === 'blueprint' ||
         saved === 'zen' ||
-        saved === 'neopop'
+        saved === 'neopop' ||
+        saved === 'royal' ||
+        saved === 'monarch' ||
+        saved === 'orbit' ||
+        saved === 'crazy'
       ) {
         return saved;
       }
@@ -237,126 +289,239 @@ export default function App() {
   const effectiveStudioFont =
     studioTextStyle === 'auto' ? THEME_DEFAULT_TEXT_STYLE[studioTheme] : studioTextStyle;
 
-  const hasHydratedIdb = useRef(false);
+  // Remade Activity Progress Studio state & Template bar preference
+  const [progressActivityFilter, setProgressActivityFilter] = useState<ActivityFilterId>('all');
+  const [progressModalActivity, setProgressModalActivity] = useState<ActivityFilterId | null>(null);
+  const [progressTemplate, setProgressTemplate] = useState<ProgressTemplateId>(() => {
+    try {
+      const saved = localStorage.getItem('ptt_progress_template_v1');
+      if (
+        saved === 'clean-bars' ||
+        saved === 'growth-cards' ||
+        saved === 'smooth-wave' ||
+        saved === 'rings-grid' ||
+        saved === 'pulse-blocks'
+      ) {
+        return saved;
+      }
+    } catch {
+      // ignore storage failure
+    }
+    return 'clean-bars';
+  });
 
-  // Hydrate cleanly from IndexedDB on initial mount (IndexedDB can retain data even if LocalStorage is trimmed)
+  const handleChangeProgressTemplate = (tpl: ProgressTemplateId) => {
+    setProgressTemplate(tpl);
+    try {
+      localStorage.setItem('ptt_progress_template_v1', tpl);
+    } catch {
+      // ignore storage failure
+    }
+  };
+
+  const handleOpenFullProgressSection = (filterId: ActivityFilterId) => {
+    setProgressActivityFilter(filterId);
+    setCurrentTab('desk');
+    window.setTimeout(() => {
+      document.getElementById('section-timeline')?.scrollIntoView({ behavior: 'smooth' });
+    }, 60);
+  };
+
+  const hasHydratedIdb = useRef(false);
+  const preHydrationActionRef = useRef(false);
+
+  // Hydrate cleanly from IndexedDB on initial mount & re-sync cleanly when a JSON backup is imported
   useEffect(() => {
     let active = true;
-    Promise.all([
-      readLocalAsync<TimeEntry[]>(STORAGE_KEYS.TIME_ENTRIES, []),
-      readLocalAsync<VaultEntry[]>(STORAGE_KEYS.VAULT_ENTRIES, []),
-      readLocalAsync<HourlyReviewItem[]>(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, []),
-      readLocalAsync<HourlyReminderPrefs>(
-        STORAGE_KEYS.HOURLY_REMINDER_PREFS,
-        DEFAULT_HOURLY_REMINDER_PREFS
-      ),
-      readLocalAsync<GapItem[]>(STORAGE_KEYS.TO_FILL_GAPS, []),
-      readLocalAsync<CustomHabit[]>(STORAGE_KEYS.CUSTOM_HABITS, DEFAULT_HABITS),
-      readLocalAsync<AchievementItem[]>(STORAGE_KEYS.ACHIEVEMENTS, []),
-      readLocalAsync<TickerSettings>(STORAGE_KEYS.TICKER_SETTINGS, DEFAULT_TICKER_SETTINGS),
-      readLocalAsync<PersistedAppState>(STORAGE_KEYS.APP_STATE, getDefaultAppState()),
-      readLocalAsync<TutorialPrefs>(STORAGE_KEYS.TUTORIAL_PREFS, DEFAULT_TUTORIAL_PREFS),
-    ]).then(
-      ([
-        loadedEntries,
-        loadedVault,
-        loadedHourlyQueue,
-        loadedHourlyPrefs,
-        loadedGaps,
-        loadedHabits,
-        loadedAchievements,
-        loadedTicker,
-        loadedAppState,
-        loadedTutorialPrefs,
-      ]) => {
-        if (!active) return;
-        if (loadedEntries.length > 0) setEntries(loadedEntries);
-        if (loadedVault.length > 0) setVaultEntries(loadedVault);
-        if (loadedHourlyQueue.length > 0) setHourlyReviewQueue(loadedHourlyQueue);
-        if (loadedHourlyPrefs) setHourlyReminderPrefs(loadedHourlyPrefs);
-        if (loadedGaps.length > 0) setToFillGaps(loadedGaps);
-        if (loadedHabits.length > 0) setHabits(loadedHabits);
-        if (loadedAchievements.length > 0) setAchievements(loadedAchievements);
-        if (loadedTicker) setTickerSettings({ ...DEFAULT_TICKER_SETTINGS, ...loadedTicker });
-        if (loadedTutorialPrefs) {
-          setTutorialPrefs(loadedTutorialPrefs);
-          if (loadedTutorialPrefs.doNotShowAgain) {
-            pendingTutorialAfterIntroRef.current = false;
+
+    const hydrateAll = (forceImportSync = false) => {
+      Promise.all([
+        readLocalAsync<TimeEntry[]>(STORAGE_KEYS.TIME_ENTRIES, []),
+        readLocalAsync<VaultEntry[]>(STORAGE_KEYS.VAULT_ENTRIES, []),
+        readLocalAsync<HourlyReviewItem[]>(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, []),
+        readLocalAsync<Partial<HourlyReminderPrefs>>(
+          STORAGE_KEYS.HOURLY_REMINDER_PREFS,
+          DEFAULT_HOURLY_REMINDER_PREFS
+        ),
+        readLocalAsync<GapItem[]>(STORAGE_KEYS.TO_FILL_GAPS, []),
+        readLocalAsync<CustomHabit[]>(STORAGE_KEYS.CUSTOM_HABITS, DEFAULT_HABITS),
+        readLocalAsync<AchievementItem[]>(STORAGE_KEYS.ACHIEVEMENTS, []),
+        readLocalAsync<TickerSettings>(STORAGE_KEYS.TICKER_SETTINGS, DEFAULT_TICKER_SETTINGS),
+        readLocalAsync<PersistedAppState>(STORAGE_KEYS.APP_STATE, getDefaultAppState()),
+        readLocalAsync<Partial<TutorialPrefs>>(STORAGE_KEYS.TUTORIAL_PREFS, DEFAULT_TUTORIAL_PREFS),
+      ]).then(
+        ([
+          loadedEntries,
+          loadedVault,
+          loadedHourlyQueue,
+          loadedHourlyPrefs,
+          loadedGaps,
+          loadedHabits,
+          loadedAchievements,
+          loadedTicker,
+          loadedAppState,
+          loadedTutorialPrefs,
+        ]) => {
+          if (!active) return;
+
+          // If user already triggered a mutation during the ~10ms boot window, preserve in-memory state instead of clobbering
+          const skipOverwrite = !forceImportSync && preHydrationActionRef.current;
+
+          if (!skipOverwrite) {
+            if (forceImportSync || loadedEntries.length > 0) setEntries(loadedEntries);
+            if (forceImportSync || loadedVault.length > 0) setVaultEntries(loadedVault);
+            if (forceImportSync || loadedHourlyQueue.length > 0)
+              setHourlyReviewQueue(loadedHourlyQueue);
+            if (loadedHourlyPrefs) {
+              setHourlyReminderPrefs({ ...DEFAULT_HOURLY_REMINDER_PREFS, ...loadedHourlyPrefs });
+            }
+            if (forceImportSync || loadedGaps.length > 0) setToFillGaps(loadedGaps);
+            if (forceImportSync || loadedHabits.length > 0) {
+              const normalizedHabits = (loadedHabits.length > 0 ? loadedHabits : DEFAULT_HABITS).map(
+                (h) => {
+                  const safeHours = h.defaultDurationHours || 1;
+                  return {
+                    ...h,
+                    defaultDurationHours: safeHours,
+                    dailyTargetMinutes: Math.max(
+                      15,
+                      h.dailyTargetMinutes || Math.round(safeHours * 60) || 60
+                    ),
+                  };
+                }
+              );
+              setHabits(normalizedHabits);
+            }
+            if (forceImportSync || loadedAchievements.length > 0) {
+              setAchievements(loadedAchievements);
+            }
+            if (loadedTicker) setTickerSettings({ ...DEFAULT_TICKER_SETTINGS, ...loadedTicker });
+            if (loadedTutorialPrefs) {
+              const mergedTut = { ...DEFAULT_TUTORIAL_PREFS, ...loadedTutorialPrefs };
+              setTutorialPrefs(mergedTut);
+              if (mergedTut.doNotShowAgain) {
+                pendingTutorialAfterIntroRef.current = false;
+              }
+            }
+            if (loadedAppState) {
+              const normalizedSession = loadedAppState.activeSession
+                ? {
+                    isPaused: false,
+                    pausedAt: null,
+                    accumulatedPausedMs: 0,
+                    ...loadedAppState.activeSession,
+                  }
+                : null;
+              setActiveSession(normalizedSession);
+              setIsDeskLoggedIn(
+                typeof loadedAppState.isDeskLoggedIn === 'boolean'
+                  ? loadedAppState.isDeskLoggedIn
+                  : true
+              );
+              setDeskLoginTimestamp(
+                loadedAppState.deskLoginTimestamp ||
+                  (loadedAppState.isDeskLoggedIn ? new Date().toISOString() : null)
+              );
+              setIsDeskTimerPaused(!!loadedAppState.isDeskTimerPaused);
+              setDeskPausedAt(loadedAppState.deskPausedAt || null);
+              setDeskAccumulatedPausedMs(loadedAppState.deskAccumulatedPausedMs || 0);
+              setStudyDeficitCarryForwardMinutes(
+                loadedAppState.studyDeficitCarryForwardMinutes || 0
+              );
+              setBankedCarryForwardMinutes(loadedAppState.bankedCarryForwardMinutes || 0);
+              setCarriedDates(loadedAppState.carriedDates || []);
+            }
           }
+
+          if (forceImportSync) {
+            try {
+              const t = localStorage.getItem('ptt_studio_theme_v1') as StudioThemeId | null;
+              if (t) setStudioTheme(t);
+              const f = localStorage.getItem('ptt_studio_text_style_v1') as StudioTextStyleId | null;
+              if (f) setStudioTextStyle(f);
+              const p = localStorage.getItem('ptt_progress_template_v1') as ProgressTemplateId | null;
+              if (p) setProgressTemplate(p);
+            } catch {
+              // ignore storage read error
+            }
+          }
+
+          hasHydratedIdb.current = true;
         }
-        if (loadedAppState) {
-          setActiveSession(loadedAppState.activeSession || null);
-          setIsDeskLoggedIn(
-            typeof loadedAppState.isDeskLoggedIn === 'boolean'
-              ? loadedAppState.isDeskLoggedIn
-              : true
-          );
-          setDeskLoginTimestamp(
-            loadedAppState.deskLoginTimestamp ||
-              (loadedAppState.isDeskLoggedIn ? new Date().toISOString() : null)
-          );
-          setStudyDeficitCarryForwardMinutes(
-            loadedAppState.studyDeficitCarryForwardMinutes || 0
-          );
-          setBankedCarryForwardMinutes(loadedAppState.bankedCarryForwardMinutes || 0);
-          setCarriedDates(loadedAppState.carriedDates || []);
-        }
-        hasHydratedIdb.current = true;
-      }
-    );
+      );
+    };
+
+    hydrateAll(false);
+
+    const handleBackupImported = () => hydrateAll(true);
+    window.addEventListener('ptt-data-imported', handleBackupImported);
 
     return () => {
       active = false;
+      window.removeEventListener('ptt-data-imported', handleBackupImported);
     };
   }, []);
 
+  const mountedRef = useRef(false);
+  const shouldPersist = () => {
+    if (hasHydratedIdb.current) return true;
+    if (mountedRef.current) {
+      preHydrationActionRef.current = true;
+      return true;
+    }
+    return false;
+  };
+
   // Persist collections to IndexedDB + LocalStorage whenever they update
   useEffect(() => {
-    if (!hasHydratedIdb.current) return;
-    writeLocalData(STORAGE_KEYS.TIME_ENTRIES, entries);
+    if (!shouldPersist()) return;
+    void writeLocalData(STORAGE_KEYS.TIME_ENTRIES, entries);
   }, [entries]);
 
   useEffect(() => {
-    if (!hasHydratedIdb.current) return;
-    writeLocalData(STORAGE_KEYS.VAULT_ENTRIES, vaultEntries);
+    if (!shouldPersist()) return;
+    void writeLocalData(STORAGE_KEYS.VAULT_ENTRIES, vaultEntries);
   }, [vaultEntries]);
 
   useEffect(() => {
-    if (!hasHydratedIdb.current) return;
-    writeLocalData(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, hourlyReviewQueue);
+    if (!shouldPersist()) return;
+    void writeLocalData(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, hourlyReviewQueue);
   }, [hourlyReviewQueue]);
 
   useEffect(() => {
-    if (!hasHydratedIdb.current) return;
-    writeLocalData(STORAGE_KEYS.HOURLY_REMINDER_PREFS, hourlyReminderPrefs);
+    if (!shouldPersist()) return;
+    void writeLocalData(STORAGE_KEYS.HOURLY_REMINDER_PREFS, hourlyReminderPrefs);
   }, [hourlyReminderPrefs]);
 
   useEffect(() => {
-    if (!hasHydratedIdb.current) return;
-    writeLocalData(STORAGE_KEYS.TO_FILL_GAPS, toFillGaps);
+    if (!shouldPersist()) return;
+    void writeLocalData(STORAGE_KEYS.TO_FILL_GAPS, toFillGaps);
   }, [toFillGaps]);
 
   useEffect(() => {
-    if (!hasHydratedIdb.current) return;
-    writeLocalData(STORAGE_KEYS.CUSTOM_HABITS, habits);
+    if (!shouldPersist()) return;
+    void writeLocalData(STORAGE_KEYS.CUSTOM_HABITS, habits);
   }, [habits]);
 
   useEffect(() => {
-    if (!hasHydratedIdb.current) return;
-    writeLocalData(STORAGE_KEYS.ACHIEVEMENTS, achievements);
+    if (!shouldPersist()) return;
+    void writeLocalData(STORAGE_KEYS.ACHIEVEMENTS, achievements);
   }, [achievements]);
 
   useEffect(() => {
-    if (!hasHydratedIdb.current) return;
-    writeLocalData(STORAGE_KEYS.TICKER_SETTINGS, tickerSettings);
+    if (!shouldPersist()) return;
+    void writeLocalData(STORAGE_KEYS.TICKER_SETTINGS, tickerSettings);
   }, [tickerSettings]);
 
   useEffect(() => {
-    if (!hasHydratedIdb.current) return;
-    writeLocalData<PersistedAppState>(STORAGE_KEYS.APP_STATE, {
+    if (!shouldPersist()) return;
+    void writeLocalData<PersistedAppState>(STORAGE_KEYS.APP_STATE, {
       activeSession,
       isDeskLoggedIn,
       deskLoginTimestamp,
+      isDeskTimerPaused,
+      deskPausedAt,
+      deskAccumulatedPausedMs,
       studyDeficitCarryForwardMinutes,
       bankedCarryForwardMinutes,
       carriedDates,
@@ -365,33 +530,62 @@ export default function App() {
     activeSession,
     isDeskLoggedIn,
     deskLoginTimestamp,
+    isDeskTimerPaused,
+    deskPausedAt,
+    deskAccumulatedPausedMs,
     studyDeficitCarryForwardMinutes,
     bankedCarryForwardMinutes,
     carriedDates,
   ]);
 
-  // Active session timer ticker based on real timestamp delta (survives reload/sleep!)
+  // Mark initial mount pass complete AFTER the first render's persistence effects have run
+  useEffect(() => {
+    mountedRef.current = true;
+  }, []);
+
+  // Active Desk Elapsed timer (respects pause/resume and survives reload)
+  useEffect(() => {
+    if (!isDeskLoggedIn || !deskLoginTimestamp) {
+      setDeskElapsedSeconds(0);
+      return;
+    }
+    const loginMs = new Date(deskLoginTimestamp).getTime();
+    if (isNaN(loginMs)) {
+      setDeskElapsedSeconds(0);
+      return;
+    }
+    const computeDeskSecs = () => {
+      const endMs = isDeskTimerPaused && deskPausedAt ? new Date(deskPausedAt).getTime() : Date.now();
+      return Math.max(0, Math.floor((endMs - loginMs - deskAccumulatedPausedMs) / 1000));
+    };
+    setDeskElapsedSeconds(computeDeskSecs());
+    if (isDeskTimerPaused) return;
+    const interval = setInterval(() => setDeskElapsedSeconds(computeDeskSecs()), 1000);
+    return () => clearInterval(interval);
+  }, [isDeskLoggedIn, deskLoginTimestamp, isDeskTimerPaused, deskPausedAt, deskAccumulatedPausedMs]);
+
+  // Active session timer ticker based on real timestamp delta minus paused duration
   useEffect(() => {
     if (!activeSession) {
       setActiveSeconds(0);
       return;
     }
-    const startMs = new Date(activeSession.startTime).getTime();
     const updateTick = () => {
-      setActiveSeconds(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
+      setActiveSeconds(Math.floor(getSessionElapsedMs(activeSession) / 1000));
     };
     updateTick();
+    if (activeSession.isPaused) return;
     const interval = setInterval(updateTick, 1000);
     return () => clearInterval(interval);
   }, [activeSession]);
 
-  // Selected date's aggregated study, break, and sleep minutes
+  // Selected date's aggregated study, break, and sleep minutes (in local calendar date)
   const { studyMinutesToday, breakMinutesToday, sleepMinutesToday } = useMemo(() => {
     let study = 0;
     let brk = 0;
     let sleep = 0;
     entries.forEach((e) => {
-      if (e.startTime && e.startTime.startsWith(selectedDate)) {
+      if (isSameLocalDate(e.startTime, selectedDate)) {
         if (e.type === 'study' || e.type === 'content') {
           study += e.durationMinutes || 0;
         } else if (e.type === 'break') {
@@ -540,22 +734,21 @@ export default function App() {
   // Check if Riyaz is ticked on selectedDate
   const todayRiyazEntry = useMemo(() => {
     return entries.find(
-      (e) => e.type === 'music' && e.startTime && e.startTime.startsWith(selectedDate)
+      (e) => e.type === 'music' && isSameLocalDate(e.startTime, selectedDate)
     );
   }, [entries, selectedDate]);
 
-  // Check if Sleep is logged on selectedDate
+  // Check latest Sleep entry logged on selectedDate
   const todaySleepEntry = useMemo(() => {
-    return entries.find(
-      (e) => e.type === 'sleep' && e.startTime && e.startTime.startsWith(selectedDate)
+    const matches = entries.filter(
+      (e) => e.type === 'sleep' && isSameLocalDate(e.startTime, selectedDate)
     );
+    return matches.length > 0 ? matches[matches.length - 1] : undefined;
   }, [entries, selectedDate]);
 
   // Last logged entry for selectedDate (used for quick undo)
   const lastLoggedEntry = useMemo(() => {
-    const todayList = entries.filter(
-      (e) => e.startTime && e.startTime.startsWith(selectedDate)
-    );
+    const todayList = entries.filter((e) => isSameLocalDate(e.startTime, selectedDate));
     return todayList.length > 0 ? todayList[todayList.length - 1] : null;
   }, [entries, selectedDate]);
 
@@ -593,7 +786,7 @@ export default function App() {
       if (!isVaulted && !isCarried) {
         let loggedStudy = 0;
         entries.forEach((e) => {
-          if (e.startTime && e.startTime.startsWith(item.date)) {
+          if (isSameLocalDate(e.startTime, item.date)) {
             if (e.type === 'study' || e.type === 'content') {
               loggedStudy += e.durationMinutes || 0;
             }
@@ -620,8 +813,7 @@ export default function App() {
     const habitsStatus = habits.map((h) => {
       const isCompleted = entries.some(
         (e) =>
-          e.startTime &&
-          e.startTime.startsWith(selectedDate) &&
+          isSameLocalDate(e.startTime, selectedDate) &&
           (e.habitId === h.id ||
             e.type === h.entryType ||
             (e.topic && e.topic.toLowerCase().includes(h.shortcode.toLowerCase())))
@@ -692,8 +884,50 @@ export default function App() {
       type,
       topic: topic || (type === 'study' ? 'General Study' : type === 'life' ? 'Life Activity' : 'Break'),
       startTime: new Date().toISOString(),
+      isPaused: false,
+      pausedAt: null,
+      accumulatedPausedMs: 0,
     });
     setActiveSeconds(0);
+  };
+
+  // Pause / Resume Active Activity Session Timer
+  const handlePauseSession = () => {
+    setActiveSession((prev) => {
+      if (!prev || prev.isPaused) return prev;
+      return {
+        ...prev,
+        isPaused: true,
+        pausedAt: new Date().toISOString(),
+      };
+    });
+  };
+
+  const handleResumeSession = () => {
+    setActiveSession((prev) => {
+      if (!prev || !prev.isPaused) return prev;
+      const pausedDelta = prev.pausedAt ? Math.max(0, Date.now() - new Date(prev.pausedAt).getTime()) : 0;
+      return {
+        ...prev,
+        isPaused: false,
+        pausedAt: null,
+        accumulatedPausedMs: (prev.accumulatedPausedMs || 0) + pausedDelta,
+      };
+    });
+  };
+
+  // Pause / Resume Active Desk Elapsed Timer
+  const handleToggleDeskTimerPause = () => {
+    if (!isDeskLoggedIn) return;
+    if (isDeskTimerPaused) {
+      const pausedDelta = deskPausedAt ? Math.max(0, Date.now() - new Date(deskPausedAt).getTime()) : 0;
+      setDeskAccumulatedPausedMs((prev) => prev + pausedDelta);
+      setIsDeskTimerPaused(false);
+      setDeskPausedAt(null);
+    } else {
+      setIsDeskTimerPaused(true);
+      setDeskPausedAt(new Date().toISOString());
+    }
   };
 
   // Retroactively log non-study Life / Leisure activity ("I already watched TV for 1.5h")
@@ -725,12 +959,12 @@ export default function App() {
     );
   };
 
-  // Stop Session
+  // Stop Session (subtracts any paused time cleanly)
   const handleStopSession = () => {
     if (!activeSession) return;
     const nowIso = new Date().toISOString();
-    const startMs = new Date(activeSession.startTime).getTime();
-    const elapsedMins = Math.max(1, Math.round((Date.now() - startMs) / 60000));
+    const activeMs = getSessionElapsedMs(activeSession);
+    const elapsedMins = Math.max(1, Math.round(activeMs / 60000));
 
     const newEntry: TimeEntry = {
       id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -779,18 +1013,20 @@ export default function App() {
     }
   };
 
-  // Log Custom Sleep Window (Bedtime -> Wake up)
+  // Log Custom Sleep Window (Bedtime -> Wake up) anytime on selectedDate
   const handleLogCustomSleep = (options: {
     startTimeIso: string;
     endTimeIso: string;
     durationMinutes: number;
+    replaceExisting?: boolean;
   }) => {
-    if (todaySleepEntry) {
-      handleDeleteEntry(todaySleepEntry.id);
+    const replaceId = options.replaceExisting && todaySleepEntry ? todaySleepEntry.id : null;
+    if (replaceId) {
+      addXp(-30);
     }
 
     const newEntry: TimeEntry = {
-      id: `local_sleep_${Date.now()}`,
+      id: `local_sleep_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
       userId: 'local_desktop_user',
       type: 'sleep',
       action: 'stop',
@@ -803,7 +1039,7 @@ export default function App() {
     };
 
     setEntries((prev) =>
-      [...prev.filter((e) => e.id !== todaySleepEntry?.id), newEntry].sort(
+      [...(replaceId ? prev.filter((e) => e.id !== replaceId) : prev), newEntry].sort(
         (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
       )
     );
@@ -872,8 +1108,7 @@ export default function App() {
         (e.habitId === habit.id ||
           e.type === habit.entryType ||
           (e.topic && e.topic.toLowerCase().includes(habit.shortcode.toLowerCase()))) &&
-        e.startTime &&
-        e.startTime.startsWith(selectedDate)
+        isSameLocalDate(e.startTime, selectedDate)
     );
 
     if (existing && !options) {
@@ -911,7 +1146,7 @@ export default function App() {
     playEarnedChime();
   };
 
-  // Day Boundary (Login / Shady Logout Auto-Check)
+  // Day Boundary (Login / Shady Logout Auto-Check + Active Desk Time Recording)
   const handleDayBoundary = (action: 'start' | 'stop') => {
     const nowIso = new Date().toISOString();
 
@@ -928,11 +1163,13 @@ export default function App() {
       createdAt: nowIso,
     };
 
-    setEntries((prev) => [...prev, newEntry]);
-
     if (action === 'start') {
+      setEntries((prev) => [...prev, newEntry]);
       setIsDeskLoggedIn(true);
       setDeskLoginTimestamp(nowIso);
+      setIsDeskTimerPaused(false);
+      setDeskPausedAt(null);
+      setDeskAccumulatedPausedMs(0);
       setMotivationModalState({
         isOpen: true,
         type: 'login',
@@ -943,7 +1180,40 @@ export default function App() {
       if (activeSession) {
         handleStopSession();
       }
+      // Persist completed Active Desk Time entry so Desk Attendance stays tracked accurately
+      if (isDeskLoggedIn && deskLoginTimestamp) {
+        const loginMs = new Date(deskLoginTimestamp).getTime();
+        const effectiveEndMs =
+          isDeskTimerPaused && deskPausedAt ? new Date(deskPausedAt).getTime() : Date.now();
+        const elapsedMs = Number.isFinite(loginMs)
+          ? Math.max(0, effectiveEndMs - loginMs - deskAccumulatedPausedMs)
+          : 0;
+        const deskMins = Math.max(1, Math.round(elapsedMs / 60000));
+        const deskEntry: TimeEntry = {
+          id: `local_desk_${Date.now()}`,
+          userId: 'local_desktop_user',
+          type: 'desk',
+          action: 'stop',
+          topic: 'Active Desk Time',
+          startTime: deskLoginTimestamp,
+          endTime: nowIso,
+          durationMinutes: deskMins,
+          source: 'manual',
+          createdAt: nowIso,
+        };
+        setEntries((prev) =>
+          [...prev, deskEntry, newEntry].sort(
+            (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+          )
+        );
+      } else {
+        setEntries((prev) => [...prev, newEntry]);
+      }
+
       setIsDeskLoggedIn(false);
+      setIsDeskTimerPaused(false);
+      setDeskPausedAt(null);
+      setDeskAccumulatedPausedMs(0);
       // Open Day-End Audit modal first (it auto-checks missing quotas/habits or celebrates!)
       setIsDayCloseOpen(true);
     }
@@ -988,7 +1258,11 @@ export default function App() {
     const cmd = trimmed.toLowerCase();
     if (!cmd) return;
 
-    if (cmd.startsWith('s on ') || cmd.startsWith('study on ')) {
+    if (cmd === 'pause') {
+      handlePauseSession();
+    } else if (cmd === 'resume') {
+      handleResumeSession();
+    } else if (cmd.startsWith('s on ') || cmd.startsWith('study on ')) {
       const topic = trimmed.slice(cmd.indexOf('on ') + 3).trim();
       handleStartSession('study', topic || 'General Study');
     } else if (cmd === 's on' || cmd === 'study on') {
@@ -1011,7 +1285,8 @@ export default function App() {
       const parts = cmd.split(/\s+/);
       const parsedH = parts.length > 1 ? parseFloat(parts[1]) : 8;
       const validH = isNaN(parsedH) || parsedH <= 0 ? 8 : parsedH;
-      const startDate = new Date(`${selectedDate}T23:00:00`);
+      const [y, m, d] = selectedDate.split('-').map(Number);
+      const startDate = new Date(y, m - 1, d, 1, 0, 0, 0);
       const durMins = Math.round(validH * 60);
       const endDate = new Date(startDate.getTime() + durMins * 60000);
       handleLogCustomSleep({
@@ -1232,9 +1507,38 @@ export default function App() {
     setHourlyReviewQueue([]);
   };
 
-  // Intro + Robot Teacher Tutorial Bundle Handlers
+  const activeDeskTelemetry: ActiveDeskTelemetry = useMemo(
+    () => ({
+      isDeskLoggedIn,
+      deskLoginTimestamp,
+      isDeskTimerPaused,
+      deskPausedAt,
+      deskAccumulatedPausedMs,
+    }),
+    [isDeskLoggedIn, deskLoginTimestamp, isDeskTimerPaused, deskPausedAt, deskAccumulatedPausedMs]
+  );
+
+  // Intro + Version Update Changelog + Robot Teacher Tutorial Bundle Handlers
   const handleIntroComplete = () => {
     setForceShowIntro(false);
+    if (pendingWhatsNewAfterIntroRef.current) {
+      pendingWhatsNewAfterIntroRef.current = false;
+      setIsWhatsNewOpen(true);
+      return;
+    }
+    if (pendingTutorialAfterIntroRef.current) {
+      pendingTutorialAfterIntroRef.current = false;
+      setIsTutorialOpen(true);
+    }
+  };
+
+  const handleCloseWhatsNew = () => {
+    setIsWhatsNewOpen(false);
+    try {
+      localStorage.setItem(SEEN_VERSION_STORAGE_KEY, CURRENT_APP_VERSION);
+    } catch {
+      // ignore storage write failure
+    }
     if (pendingTutorialAfterIntroRef.current) {
       pendingTutorialAfterIntroRef.current = false;
       setIsTutorialOpen(true);
@@ -1383,7 +1687,7 @@ export default function App() {
                   <span className="text-zinc-800">·</span>
                   <a href="#section-timeline" className="px-2.5 py-1 rounded-md hover:bg-cyan-500/10 text-zinc-300 hover:text-cyan-200 transition-colors whitespace-nowrap">
                     <span className="font-mono text-cyan-400 font-bold mr-1">06.</span>
-                    <span className="font-medium">Visuals</span>
+                    <span className="font-medium">Progress</span>
                   </a>
                 </div>
               </div>
@@ -1399,21 +1703,28 @@ export default function App() {
 
             {/* Step 01: Desk Command Center & Active Elapsed Login Timer */}
             <section id="section-command" className="scroll-mt-28 space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20">
+              <div className="flex items-center justify-between pb-2.5 border-b border-emerald-500/25">
                 <div className="flex items-baseline gap-2.5">
-                  <span className="text-xs font-mono font-bold text-emerald-400">01.</span>
-                  <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-white">
-                    Desk Command & Session Controls
+                  <span className="text-sm font-mono font-bold text-emerald-400">01.</span>
+                  <h2 className="font-display text-2xl sm:text-[1.7rem] font-bold tracking-tight text-white">
+                    Desk Command &amp; Session Controls
                   </h2>
                 </div>
                 <span className="label-scandi text-emerald-400/80 hidden sm:inline">Elapsed Login Monitor</span>
               </div>
               <DeskQuickLogger
                 activeSession={activeSession}
+                activeSessionSeconds={activeSeconds}
+                onPauseSession={handlePauseSession}
+                onResumeSession={handleResumeSession}
                 onStopSession={handleStopSession}
                 onDayBoundary={handleDayBoundary}
                 isDeskLoggedIn={isDeskLoggedIn}
                 deskLoginTimestamp={deskLoginTimestamp}
+                deskElapsedSeconds={deskElapsedSeconds}
+                isDeskTimerPaused={isDeskTimerPaused}
+                onToggleDeskTimerPause={handleToggleDeskTimerPause}
+                onOpenDeskProgress={() => setProgressModalActivity('desk')}
                 lastLoggedEntry={lastLoggedEntry}
                 onUndoEntry={handleDeleteEntry}
               />
@@ -1423,60 +1734,72 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Step 02: 6-Hour Study Quota Card + S on + Quick Shortcode Bar */}
               <section id="section-focus" className="scroll-mt-28 space-y-3">
-                <div className="flex items-baseline gap-2 pb-1.5 border-b border-emerald-500/25">
-                  <span className="text-xs font-mono font-bold text-emerald-400">02.</span>
-                  <h2 className="font-display text-lg font-semibold tracking-tight text-emerald-50">
+                <div className="flex items-baseline gap-2 pb-2 border-b border-emerald-500/25">
+                  <span className="text-sm font-mono font-bold text-emerald-400">02.</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-emerald-50">
                     Focus Quota (6h Target)
                   </h2>
                 </div>
                 <StudyQuotaCard
                   completedStudyMinutesToday={studyMinutesToday}
                   isStudyActive={activeSession?.type === 'study'}
+                  isSessionPaused={!!activeSession?.isPaused}
                   activeStudyDurationSeconds={activeSession?.type === 'study' ? activeSeconds : 0}
                   studyDeficitCarryForwardMinutes={studyDeficitCarryForwardMinutes}
                   currentStreak={profile.currentStreak || 1}
                   level={profile.level || 1}
                   onStartStudy={(topic) => handleStartSession('study', topic)}
+                  onPauseSession={handlePauseSession}
+                  onResumeSession={handleResumeSession}
                   onStopSession={handleStopSession}
                   onShortcodeSubmit={handleShortcodeCommand}
+                  onOpenProgress={() => setProgressModalActivity('study')}
                 />
               </section>
 
               {/* Step 03: 2-Hour Decrementing Break Bank Card + Break (bon) Button */}
               <section id="section-break" className="scroll-mt-28 space-y-3">
-                <div className="flex items-baseline gap-2 pb-1.5 border-b border-amber-500/25">
-                  <span className="text-xs font-mono font-bold text-amber-400">03.</span>
-                  <h2 className="font-display text-lg font-semibold tracking-tight text-amber-50">
-                    Break Bank & Emergency Alerts
+                <div className="flex items-baseline gap-2 pb-2 border-b border-amber-500/25">
+                  <span className="text-sm font-mono font-bold text-amber-400">03.</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-amber-50">
+                    Break Bank &amp; Alerts
                   </h2>
                 </div>
                 <BreakBankCard
                   usedBreakMinutesToday={breakMinutesToday}
                   isBreakActive={activeSession?.type === 'break'}
+                  isSessionPaused={!!activeSession?.isPaused}
                   activeBreakDurationSeconds={activeSession?.type === 'break' ? activeSeconds : 0}
                   bankedCarryForwardMinutes={bankedCarryForwardMinutes}
                   onStartBreak={() => handleStartSession('break', 'Break')}
+                  onPauseSession={handlePauseSession}
+                  onResumeSession={handleResumeSession}
                   onStopBreak={handleStopSession}
+                  onOpenProgress={() => setProgressModalActivity('break')}
                 />
               </section>
 
               {/* Step 04: 8-Hour Restorative Sleep Tracker Card */}
               <section id="section-sleep" className="scroll-mt-28 space-y-3">
-                <div className="flex items-baseline gap-2 pb-1.5 border-b border-indigo-500/25">
-                  <span className="text-xs font-mono font-bold text-indigo-400">04.</span>
-                  <h2 className="font-display text-lg font-semibold tracking-tight text-indigo-50">
-                    Restorative Sleep & Recovery
+                <div className="flex items-baseline gap-2 pb-2 border-b border-indigo-500/25">
+                  <span className="text-sm font-mono font-bold text-indigo-400">04.</span>
+                  <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-indigo-50">
+                    Restorative Sleep
                   </h2>
                 </div>
                 <SleepTrackerCard
                   sleepMinutesToday={sleepMinutesToday}
                   isSleepActive={activeSession?.type === 'sleep'}
+                  isSessionPaused={!!activeSession?.isPaused}
                   activeSleepDurationSeconds={activeSession?.type === 'sleep' ? activeSeconds : 0}
                   todaySleepEntry={todaySleepEntry}
                   onStartSleep={() => handleStartSession('sleep', 'Restorative Sleep')}
+                  onPauseSession={handlePauseSession}
+                  onResumeSession={handleResumeSession}
                   onStopSleep={handleStopSession}
                   onLogCustomSleep={handleLogCustomSleep}
                   onUndoSleep={handleDeleteEntry}
+                  onOpenProgress={() => setProgressModalActivity('sleep')}
                   selectedDate={selectedDate}
                 />
               </section>
@@ -1486,9 +1809,9 @@ export default function App() {
             <section id="section-habits" className="scroll-mt-28 space-y-3 pt-2">
               <div className="flex items-center justify-between pb-2.5 border-b border-purple-500/25">
                 <div className="flex items-baseline gap-2.5">
-                  <span className="text-xs font-mono font-bold text-purple-400">05.</span>
-                  <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-purple-50">
-                    Practice & Habits Hub
+                  <span className="text-sm font-mono font-bold text-purple-400">05.</span>
+                  <h2 className="font-display text-2xl sm:text-[1.7rem] font-bold tracking-tight text-purple-50">
+                    Practice &amp; Habits Hub
                   </h2>
                 </div>
                 <button
@@ -1509,39 +1832,49 @@ export default function App() {
                     todayEntries={entries}
                     onToggleHabit={handleToggleHabit}
                     onEditHabit={() => setIsHabitsManagerOpen(true)}
+                    onOpenProgress={(h) => setProgressModalActivity(`habit:${h.id}`)}
                     selectedDate={selectedDate}
                   />
                 ))}
               </div>
             </section>
 
-            {/* Step 06: Timeline, Heatmap & Multi-Visualization Analytics */}
+            {/* Step 06: Simple Activity Progress Studio (Hours, Weeks, Months, Years) */}
             <section id="section-timeline" className="scroll-mt-28 space-y-3 pt-2">
               <div className="flex items-center justify-between pb-2.5 border-b border-cyan-500/25">
                 <div className="flex items-baseline gap-2.5">
-                  <span className="text-xs font-mono font-bold text-cyan-400">06.</span>
-                  <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-cyan-50">
-                    24-Hour Timeline & Visual Analytics
+                  <span className="text-sm font-mono font-bold text-cyan-400">06.</span>
+                  <h2 className="font-display text-2xl sm:text-[1.7rem] font-bold tracking-tight text-cyan-50">
+                    Activity Progress &amp; Hourly Flow
                   </h2>
                 </div>
                 <span className="label-scandi text-cyan-400/80 hidden sm:inline">
-                  Heatmap · Candlestick · Donut · Stacked
+                  Hours · Weeks · Months · Years
                 </span>
               </div>
-              <TimelineHeatmap
+              <ActivityProgressStudio
                 entries={entries}
+                habits={habits}
                 selectedDate={selectedDate}
-                gaps={toFillGaps}
+                activeActivityFilter={progressActivityFilter}
+                onChangeActivityFilter={setProgressActivityFilter}
+                template={progressTemplate}
+                onChangeTemplate={handleChangeProgressTemplate}
                 onDeleteEntry={handleDeleteEntry}
+                activeDesk={activeDeskTelemetry}
+                vaultEntries={vaultEntries}
+                hourlyReviewQueue={hourlyReviewQueue}
+                achievementsCount={achievements.length}
+                profile={profile}
               />
             </section>
 
             {/* Step 07: Study Science & Insights */}
             <section id="section-insights" className="scroll-mt-28 space-y-3 pt-2">
               <div className="flex items-baseline gap-2.5 pb-2.5 border-b border-emerald-500/25">
-                <span className="text-xs font-mono font-bold text-emerald-400">07.</span>
-                <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-emerald-50">
-                  Accountability & Focus Principles
+                <span className="text-sm font-mono font-bold text-emerald-400">07.</span>
+                <h2 className="font-display text-2xl sm:text-[1.7rem] font-bold tracking-tight text-emerald-50">
+                  Accountability &amp; Focus Principles
                 </h2>
               </div>
               <InsightsTips entries={entries} />
@@ -1549,13 +1882,22 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 2: Timeline & Analytics */}
+        {/* Tab 2: Simple Activity Progress & Graphs */}
         {currentTab === 'timeline' && (
-          <TimelineHeatmap
+          <ActivityProgressStudio
             entries={entries}
+            habits={habits}
             selectedDate={selectedDate}
-            gaps={toFillGaps}
+            activeActivityFilter={progressActivityFilter}
+            onChangeActivityFilter={setProgressActivityFilter}
+            template={progressTemplate}
+            onChangeTemplate={handleChangeProgressTemplate}
             onDeleteEntry={handleDeleteEntry}
+            activeDesk={activeDeskTelemetry}
+            vaultEntries={vaultEntries}
+            hourlyReviewQueue={hourlyReviewQueue}
+            achievementsCount={achievements.length}
+            profile={profile}
           />
         )}
 
@@ -1644,8 +1986,12 @@ export default function App() {
           setIsResetInfoOpen(false);
           setIsDayCloseOpen(true);
         }}
+        onOpenWhatsNew={() => setIsWhatsNewOpen(true)}
         selectedDate={selectedDate}
       />
+
+      {/* First-Open After Software Update Changelog */}
+      <WhatsNewModal isOpen={isWhatsNewOpen} onClose={handleCloseWhatsNew} />
 
       {/* Custom Habits Management Modal */}
       <CustomHabitsManager
@@ -1695,9 +2041,24 @@ export default function App() {
         todayEntries={entries}
         selectedDate={selectedDate}
         onStartLifeTimer={(topic) => handleStartSession('life', topic)}
+        onPauseSession={handlePauseSession}
+        onResumeSession={handleResumeSession}
         onStopSession={handleStopSession}
         onLogPastLifeActivity={handleLogLifeActivity}
         onUndoEntry={handleDeleteEntry}
+      />
+
+      {/* Per-Activity Interactive Progress Modal (Triggered from Homepage Cards) */}
+      <ActivityProgressModal
+        activityFilter={progressModalActivity}
+        onClose={() => setProgressModalActivity(null)}
+        entries={entries}
+        habits={habits}
+        selectedDate={selectedDate}
+        template={progressTemplate}
+        onChangeTemplate={handleChangeProgressTemplate}
+        onOpenFullSection={handleOpenFullProgressSection}
+        activeDesk={activeDeskTelemetry}
       />
     </div>
   );

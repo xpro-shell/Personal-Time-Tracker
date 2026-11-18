@@ -1,24 +1,32 @@
 import confetti from 'canvas-confetti';
-import { AlertTriangle, Coffee, Sparkles, Square, TrendingUp } from 'lucide-react';
+import { AlertTriangle, BarChart2, Coffee, Pause, Play, Sparkles, Square, TrendingUp } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { playBreakExhaustedAlert, playDeskClick, playEarnedChime } from '../lib/audioAlert';
 
 interface BreakBankCardProps {
   usedBreakMinutesToday: number;
   isBreakActive: boolean;
+  isSessionPaused?: boolean;
   activeBreakDurationSeconds: number;
   bankedCarryForwardMinutes: number;
   onStartBreak: () => void;
+  onPauseSession?: () => void;
+  onResumeSession?: () => void;
   onStopBreak: () => void;
+  onOpenProgress?: () => void;
 }
 
 export const BreakBankCard: React.FC<BreakBankCardProps> = ({
   usedBreakMinutesToday,
   isBreakActive,
+  isSessionPaused = false,
   activeBreakDurationSeconds,
   bankedCarryForwardMinutes,
   onStartBreak,
+  onPauseSession,
+  onResumeSession,
   onStopBreak,
+  onOpenProgress,
 }) => {
   const BASE_QUOTA_SECONDS = 2 * 60 * 60; // 7,200 seconds (2h)
   const totalUsedSeconds = Math.round(usedBreakMinutesToday * 60) + (isBreakActive ? activeBreakDurationSeconds : 0);
@@ -96,12 +104,26 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
             <div className={`p-2 rounded-lg border ${isExhausted ? 'bg-red-950/70 border-red-500/40' : 'bg-amber-500/10 border-amber-500/30'}`}>
               <Coffee className={`w-4 h-4 ${isExhausted ? 'text-red-400' : 'text-amber-400'}`} />
             </div>
-            <h3 className="font-display text-base font-semibold tracking-tight text-white">
+            <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white">
               2-Hour Break Bank
             </h3>
           </div>
           <div className="flex items-center gap-2 text-xs font-mono tabular-nums text-zinc-400">
             <span>{Math.round(totalUsedSeconds / 60)}m / 120m used</span>
+            {onOpenProgress && (
+              <button
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  onOpenProgress();
+                }}
+                className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 hover:border-amber-400/60 text-amber-300 hover:text-white transition-all cursor-pointer"
+                title="View Break progress graph (Hours, Weeks, Months, Years)"
+                aria-label="View Break progress graph"
+              >
+                <BarChart2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -159,17 +181,46 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
         </div>
 
         {isBreakActive ? (
-          <button
-            type="button"
-            onClick={() => {
-              playDeskClick();
-              onStopBreak();
-            }}
-            className="interactive-press w-full flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 rounded-lg transition-all shadow-[0_0_18px_-4px_rgba(220,38,38,0.6)] cursor-pointer"
-          >
-            <Square className="w-3.5 h-3.5 fill-current" />
-            <span>End Break (boff)</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {onPauseSession && onResumeSession && (
+              <button
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  if (isSessionPaused) onResumeSession();
+                  else onPauseSession();
+                }}
+                className={`interactive-press flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-bold rounded-lg border transition-all cursor-pointer shrink-0 ${
+                  isSessionPaused
+                    ? 'bg-emerald-400 text-zinc-950 border-emerald-300'
+                    : 'bg-amber-500/20 text-amber-100 border-amber-400/55 hover:bg-amber-500/30'
+                }`}
+              >
+                {isSessionPaused ? (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Resume</span>
+                  </>
+                ) : (
+                  <>
+                    <Pause className="w-3.5 h-3.5" />
+                    <span>Pause</span>
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                playDeskClick();
+                onStopBreak();
+              }}
+              className="interactive-press flex-1 flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 rounded-lg transition-all shadow-[0_0_18px_-4px_rgba(220,38,38,0.6)] cursor-pointer"
+            >
+              <Square className="w-3.5 h-3.5 fill-current" />
+              <span>End Break (boff)</span>
+            </button>
+          </div>
         ) : (
           <button
             type="button"

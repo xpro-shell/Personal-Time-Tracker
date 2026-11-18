@@ -24,6 +24,12 @@ const createDefaultProfile = (): UserProfile => {
   };
 };
 
+function parseIsoMs(iso?: string): number {
+  if (!iso) return 0;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
 const LocalProfileContext = createContext<LocalProfileContextType>({
   profile: createDefaultProfile(),
   loading: false,
@@ -35,36 +41,62 @@ const LocalProfileContext = createContext<LocalProfileContextType>({
 export const useLocalProfile = () => useContext(LocalProfileContext);
 
 export const LocalProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [profile, setProfile] = useState<UserProfile>(() =>
-    readLocalSync<UserProfile>(STORAGE_KEYS.PROFILE, createDefaultProfile())
-  );
+  const [profile, setProfile] = useState<UserProfile>(() => ({
+    ...createDefaultProfile(),
+    ...readLocalSync<Partial<UserProfile>>(STORAGE_KEYS.PROFILE, {}),
+  }));
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     let active = true;
-    readLocalAsync<UserProfile>(STORAGE_KEYS.PROFILE, createDefaultProfile()).then((loaded) => {
-      if (active) {
-        setProfile(loaded);
-        setLoading(false);
-      }
-    });
+
+    const hydrateProfile = (forceOverwrite = false) => {
+      readLocalAsync<Partial<UserProfile>>(STORAGE_KEYS.PROFILE, createDefaultProfile()).then(
+        (loaded) => {
+          if (!active) return;
+          const normalized: UserProfile = {
+            ...createDefaultProfile(),
+            ...loaded,
+          };
+          setProfile((prev) => {
+            if (forceOverwrite) return normalized;
+            const prevUpdated = parseIsoMs(prev.updatedAt);
+            const loadedUpdated = parseIsoMs(normalized.updatedAt);
+            // Keep whichever version is newer, or prefer the one with recorded XP if same/fresh mount
+            if (prevUpdated > loadedUpdated && prev.totalXp > 0) {
+              return prev;
+            }
+            if (loaded.totalXp === undefined && prev.totalXp > 0) {
+              return prev;
+            }
+            return normalized;
+          });
+          setLoading(false);
+        }
+      );
+    };
+
+    hydrateProfile(false);
+
+    const handleImported = () => hydrateProfile(true);
+    window.addEventListener('ptt-data-imported', handleImported);
     return () => {
       active = false;
+      window.removeEventListener('ptt-data-imported', handleImported);
     };
   }, []);
-
-  const persistProfile = (updated: UserProfile) => {
-    setProfile(updated);
-    writeLocalData(STORAGE_KEYS.PROFILE, updated);
-  };
 
   const updateDisplayName = (newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed) return;
-    persistProfile({
-      ...profile,
-      displayName: trimmed,
-      updatedAt: new Date().toISOString(),
+    setProfile((prev) => {
+      const updated: UserProfile = {
+        ...prev,
+        displayName: trimmed,
+        updatedAt: new Date().toISOString(),
+      };
+      void writeLocalData(STORAGE_KEYS.PROFILE, updated);
+      return updated;
     });
   };
 
@@ -78,7 +110,7 @@ export const LocalProfileProvider: React.FC<{ children: React.ReactNode }> = ({ 
         level: newLevel,
         updatedAt: new Date().toISOString(),
       };
-      writeLocalData(STORAGE_KEYS.PROFILE, updated);
+      void writeLocalData(STORAGE_KEYS.PROFILE, updated);
       return updated;
     });
   };
@@ -91,7 +123,7 @@ export const LocalProfileProvider: React.FC<{ children: React.ReactNode }> = ({ 
         lastActiveDate: new Date().toISOString().slice(0, 10),
         updatedAt: new Date().toISOString(),
       };
-      writeLocalData(STORAGE_KEYS.PROFILE, updated);
+      void writeLocalData(STORAGE_KEYS.PROFILE, updated);
       return updated;
     });
   };

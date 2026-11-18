@@ -1,5 +1,6 @@
 import confetti from 'canvas-confetti';
 import {
+  BarChart2,
   Book,
   CheckCircle2,
   Clock,
@@ -16,6 +17,7 @@ import {
 import React, { useState } from 'react';
 import { playDeskClick, playEarnedChime } from '../lib/audioAlert';
 import { CustomHabit, TimeEntry } from '../types/tracker';
+import { isSameLocalDate } from './DateNavigator';
 
 interface HabitCardProps {
   habit: CustomHabit;
@@ -26,6 +28,7 @@ interface HabitCardProps {
     durationMinutes?: number;
   }) => void;
   onEditHabit: (habit: CustomHabit) => void;
+  onOpenProgress?: (habit: CustomHabit) => void;
   selectedDate: string;
 }
 
@@ -57,26 +60,41 @@ export const HabitCard: React.FC<HabitCardProps> = ({
   todayEntries,
   onToggleHabit,
   onEditHabit,
+  onOpenProgress,
   selectedDate,
 }) => {
   // Find logged entry for today matching this habit
   const loggedEntry = todayEntries.find(
-    (e) => (e.habitId === habit.id || e.type === habit.entryType || e.topic?.toLowerCase().includes(habit.shortcode.toLowerCase())) &&
-           e.startTime && e.startTime.startsWith(selectedDate)
+    (e) =>
+      (e.habitId === habit.id ||
+        e.type === habit.entryType ||
+        e.topic?.toLowerCase().includes(habit.shortcode.toLowerCase())) &&
+      isSameLocalDate(e.startTime, selectedDate)
   );
 
   const isTicked = !!loggedEntry;
   const completedMinutes = todayEntries
-    .filter((e) => (e.habitId === habit.id || e.type === habit.entryType || e.topic?.toLowerCase().includes(habit.shortcode.toLowerCase())) &&
-                   e.startTime && e.startTime.startsWith(selectedDate))
+    .filter(
+      (e) =>
+        (e.habitId === habit.id ||
+          e.type === habit.entryType ||
+          e.topic?.toLowerCase().includes(habit.shortcode.toLowerCase())) &&
+        isSameLocalDate(e.startTime, selectedDate)
+    )
     .reduce((sum, e) => sum + (e.durationMinutes || 0), 0);
+
+  const safeDefaultHours = habit.defaultDurationHours || 1;
+  const safeDailyTargetMinutes = Math.max(
+    15,
+    habit.dailyTargetMinutes || Math.round(safeDefaultHours * 60) || 60
+  );
 
   // Custom Time Window state
   const [showCustomTime, setShowCustomTime] = useState(false);
   const [startTime, setStartTime] = useState<string>(() => formatTimeHHMM(new Date()));
-  const [durationHours, setDurationHours] = useState<number>(habit.defaultDurationHours);
+  const [durationHours, setDurationHours] = useState<number>(safeDefaultHours);
   const [endTime, setEndTime] = useState<string>(() =>
-    addHoursToHHMM(formatTimeHHMM(new Date()), habit.defaultDurationHours)
+    addHoursToHHMM(formatTimeHHMM(new Date()), safeDefaultHours)
   );
 
   const handleStartTimeChange = (newStart: string) => {
@@ -226,7 +244,10 @@ export const HabitCard: React.FC<HabitCardProps> = ({
 
   const colorStyles = THEME_MAP[habit.colorTheme] || THEME_MAP.purple;
 
-  const progressPercent = Math.min(100, Math.round((completedMinutes / habit.dailyTargetMinutes) * 100));
+  const progressPercent = Math.min(
+    100,
+    Math.round((completedMinutes / safeDailyTargetMinutes) * 100)
+  );
   const formatHm = (m: number) => {
     const h = Math.floor(m / 60);
     const mins = m % 60;
@@ -263,7 +284,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
             {habit.iconType === 'moon' && <Moon className={`w-4 h-4 ${colorStyles.accentText}`} />}
           </div>
           <div>
-            <h3 className="font-display text-lg font-semibold tracking-tight text-white flex items-center gap-2">
+            <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
               <span>{habit.name}</span>
             </h3>
             <span className="label-scandi text-zinc-400 block mt-0.5">
@@ -272,13 +293,29 @@ export const HabitCard: React.FC<HabitCardProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={() => onEditHabit(habit)}
-          className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800/80 rounded-lg transition-colors cursor-pointer"
-          title="Edit Habit Configuration"
-        >
-          <Sliders className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-1">
+          {onOpenProgress && (
+            <button
+              type="button"
+              onClick={() => {
+                playDeskClick();
+                onOpenProgress(habit);
+              }}
+              className="p-1.5 text-zinc-300 hover:text-white bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800/80 rounded-lg transition-colors cursor-pointer"
+              title={`View ${habit.name} progress graph (Hours, Weeks, Months, Years)`}
+              aria-label={`View ${habit.name} progress graph`}
+            >
+              <BarChart2 className={`w-3.5 h-3.5 ${colorStyles.accentText}`} />
+            </button>
+          )}
+          <button
+            onClick={() => onEditHabit(habit)}
+            className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800/80 rounded-lg transition-colors cursor-pointer"
+            title="Edit Habit Configuration"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Quota Progress Bar */}
@@ -286,7 +323,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
         <div className="flex items-center justify-between text-xs font-mono mb-1.5">
           <span className="label-scandi text-zinc-400">Daily Quota</span>
           <span className="text-zinc-100 tabular-nums font-semibold">
-            {formatHm(completedMinutes)} / {formatHm(habit.dailyTargetMinutes)} ({progressPercent}%)
+            {formatHm(completedMinutes)} / {formatHm(safeDailyTargetMinutes)} ({progressPercent}%)
           </span>
         </div>
         <div className="w-full h-2 rounded-full bg-zinc-950 border border-zinc-800/90 overflow-hidden">
