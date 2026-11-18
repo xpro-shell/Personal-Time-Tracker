@@ -1869,6 +1869,7 @@ export default function App() {
         achievementsCount={achievements.length}
         onOpenResetInfo={() => setIsResetInfoOpen(true)}
         onReplayIntro={handleReplayIntroBundle}
+        onOpenWhatsNew={() => setIsWhatsNewOpen(true)}
       />
 
       {/* News-Channel Moving Achievement Ticker at the Top */}

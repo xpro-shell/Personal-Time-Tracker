@@ -2,6 +2,7 @@ import { Check, Clock, Edit2, HardDrive, Sparkles } from 'lucide-react';
 import React, { useState } from 'react';
 import { useLocalProfile } from '../context/LocalProfileContext';
 import { PWAInstallButton } from './PWAInstallButton';
+import { CURRENT_APP_VERSION } from './WhatsNewModal';
 
 interface TopBarProps {
   currentTab: string;
@@ -10,6 +11,7 @@ interface TopBarProps {
   achievementsCount?: number;
   onOpenResetInfo?: () => void;
   onReplayIntro?: () => void;
+  onOpenWhatsNew?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -19,6 +21,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   achievementsCount = 0,
   onOpenResetInfo,
   onReplayIntro,
+  onOpenWhatsNew,
 }) => {
   const { profile, updateDisplayName } = useLocalProfile();
   const [isEditingName, setIsEditingName] = useState(false);
@@ -87,6 +90,17 @@ export const TopBar: React.FC<TopBarProps> = ({
               <Clock className="w-3.5 h-3.5 text-emerald-400" />
               <span className="hidden sm:inline">Reset:</span>
               <span className="text-emerald-400 font-semibold">00:00</span>
+            </button>
+          )}
+
+          {onOpenWhatsNew && (
+            <button
+              type="button"
+              onClick={onOpenWhatsNew}
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 text-xs font-mono text-cyan-300 hover:text-cyan-200 bg-[#121215] border border-zinc-800 hover:border-cyan-400/50 rounded-lg transition-colors cursor-pointer"
+              title={`See what changed in v${CURRENT_APP_VERSION}`}
+            >
+              <span>v{CURRENT_APP_VERSION}</span>
             </button>
           )}
 

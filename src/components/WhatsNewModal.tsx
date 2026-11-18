@@ -1,18 +1,22 @@
 import {
   Activity,
+  ArrowLeftRight,
   Bot,
+  CalendarClock,
   CheckCircle2,
+  ChevronDown,
   Clock,
+  MoonStar,
   ShieldCheck,
   Sparkles,
   TrendingUp,
   X,
 } from 'lucide-react';
-import React from 'react';
+import React, { useState } from 'react';
 import { playDeskClick, playEarnedChime } from '../lib/audioAlert';
 
-export const CURRENT_APP_VERSION = '2.4.0';
-export const RELEASE_CODENAME = 'RankPulse & Desk Telemetry';
+export const CURRENT_APP_VERSION = '2.5.0';
+export const RELEASE_CODENAME = 'Midnight Continuity & Time Recovery';
 export const SEEN_VERSION_STORAGE_KEY = 'ptt_seen_app_version_v1';
 
 interface WhatsNewModalProps {
@@ -22,43 +26,72 @@ interface WhatsNewModalProps {
 
 const RELEASE_HIGHLIGHTS = [
   {
+    icon: MoonStar,
+    accent: 'text-emerald-400',
+    title: 'Session-Aware Midnight Rollover',
+    detail:
+      'Active Study, Break, or Sleep sessions crossing 12:00 AM stay on their original assigned date—including all notes added after midnight—until you stop the session.',
+  },
+  {
+    icon: CalendarClock,
+    accent: 'text-cyan-400',
+    title: 'Open Desk Timer Continuity & Reset to Today',
+    detail:
+      'If your Desk Timer stays logged in past midnight, yesterday stays open so you can finish remaining quota. Click "Reset to Today" inside Desk Command Center whenever ready to advance.',
+  },
+  {
+    icon: ArrowLeftRight,
+    accent: 'text-teal-400',
+    title: '1-Click Send Tracked Time Back to Yesterday',
+    detail:
+      'Use "Send Time Back" in the Past Weekday banner or "Prev Day" on any entry in Activity Progress to move post-midnight logs back to yesterday and auto-clear shortfall or Vault debt.',
+  },
+  {
+    icon: CheckCircle2,
+    accent: 'text-purple-400',
+    title: 'Distraction-Free Tracking (Hourly Reminders Removed)',
+    detail:
+      'Completely removed automatic 1-hour untracked-time popups and background checks while preserving all manual timers, notes, and shortcuts.',
+  },
+  {
+    icon: ShieldCheck,
+    accent: 'text-amber-400',
+    title: 'Zero-Data-Loss Updates',
+    detail:
+      'Existing logs, carried-forward balances, Vault hours, custom habits, and XP stay untouched across git pull updates.',
+  },
+];
+
+const PREVIOUS_V240_HIGHLIGHTS = [
+  {
     icon: Clock,
     accent: 'text-teal-400',
-    title: 'Active Desk Time Now Tracked & Graphed',
-    detail:
-      'Live desk attendance (plus pause/resume) is recorded on Day Logout and graphed live across Hours, This Week, Weeks, Months, Years, and Growth Cards.',
+    title: 'Active Desk Time Tracked & Graphed',
+    detail: 'Live desk attendance graphed across Hours, This Week, Weeks, Months, Years, and Growth Cards.',
   },
   {
     icon: Bot,
     accent: 'text-cyan-400',
     title: 'RankPulse AI Growth Chatbot (In Beta · Testing)',
-    detail:
-      'Tap the floating RankPulse circle inside Progress & Graphs to ask exact questions about 1-week % growth, active desk time, or all-time tracker stats.',
+    detail: 'Circular growth assistant inside Progress & Graphs for 1-week % growth and all-time stats.',
   },
   {
     icon: TrendingUp,
     accent: 'text-emerald-400',
     title: 'Growth Cards & Yesterday Deltas',
-    detail:
-      'Switch to the Growth Cards template or inspect any graph to see percentage growth or degrowth compared to yesterday.',
+    detail: 'Card template comparing today vs yesterday % growth or degrowth.',
   },
   {
     icon: Activity,
     accent: 'text-purple-400',
-    title: 'Refined Activity Pills, Pause Controls & Sleep Anytime',
-    detail:
-      'Smooth-scrolling rounded activity filters, hover-expanding Desk Pause button, pauseable activity timers, and any-hour Sleep logging.',
-  },
-  {
-    icon: ShieldCheck,
-    accent: 'text-amber-400',
-    title: 'Zero-Data-Loss Updates & Local Backup',
-    detail:
-      'Timestamp-reconciled IndexedDB + LocalStorage sync preserves existing history across git pull updates, with JSON Backup/Restore in Reset: 00:00.',
+    title: 'Refined Activity Pills, Hover Pause & Anytime Sleep',
+    detail: 'Rounded activity filter pills, compact expanding Desk Pause control, and 24h Sleep logging.',
   },
 ];
 
 export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ isOpen, onClose }) => {
+  const [showPrevious, setShowPrevious] = useState(false);
+
   if (!isOpen) return null;
 
   return (
@@ -100,7 +133,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ isOpen, onClose })
           </p>
         </div>
 
-        {/* Feature List */}
+        {/* Current Release Feature List */}
         <div className="divide-y divide-zinc-800/80 border border-zinc-800/90 rounded-xl bg-[#0b0c10] overflow-hidden">
           {RELEASE_HIGHLIGHTS.map((item) => {
             const Icon = item.icon;
@@ -120,6 +153,41 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ isOpen, onClose })
               </div>
             );
           })}
+        </div>
+
+        {/* Collapsible Earlier Release Notes (v2.4.0) */}
+        <div className="border border-zinc-800/70 rounded-xl bg-[#0b0c10]/70 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => {
+              playDeskClick();
+              setShowPrevious((prev) => !prev);
+            }}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-mono text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+          >
+            <span>Earlier Release (v2.4.0 · RankPulse &amp; Desk Telemetry)</span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                showPrevious ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+          {showPrevious && (
+            <div className="divide-y divide-zinc-800/60 border-t border-zinc-800/70">
+              {PREVIOUS_V240_HIGHLIGHTS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="px-3.5 py-2.5 flex items-start gap-2.5">
+                    <Icon className={`w-3.5 h-3.5 ${item.accent} shrink-0 mt-0.5`} />
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-zinc-200">{item.title}</div>
+                      <div className="text-[11px] font-sans text-zinc-400">{item.detail}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Footer CTA */}
