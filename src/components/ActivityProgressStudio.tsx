@@ -20,9 +20,9 @@ import {
   ProgressTemplateId,
   ProgressTimeframe,
 } from '../lib/progressAnalytics';
-import { CustomHabit, HourlyReviewItem, TimeEntry, UserProfile, VaultEntry } from '../types/tracker';
+import { CustomHabit, TimeEntry, UserProfile, VaultEntry } from '../types/tracker';
+import { isEntryOnLocalDate } from '../lib/sessionRollover';
 import { ActivityProgressChart, PROGRESS_TEMPLATES } from './ActivityProgressChart';
-import { isSameLocalDate } from './DateNavigator';
 import { RankPulseChatbot } from './RankPulseChatbot';
 
 interface ActivityProgressStudioProps {
@@ -36,7 +36,6 @@ interface ActivityProgressStudioProps {
   onDeleteEntry?: (id: string) => void;
   activeDesk?: ActiveDeskTelemetry;
   vaultEntries?: VaultEntry[];
-  hourlyReviewQueue?: HourlyReviewItem[];
   achievementsCount?: number;
   profile?: UserProfile;
 }
@@ -60,7 +59,6 @@ export const ActivityProgressStudio: React.FC<ActivityProgressStudioProps> = ({
   onDeleteEntry,
   activeDesk,
   vaultEntries = [],
-  hourlyReviewQueue = [],
   achievementsCount = 0,
   profile,
 }) => {
@@ -141,7 +139,7 @@ export const ActivityProgressStudio: React.FC<ActivityProgressStudioProps> = ({
   // Quick Daily Snapshot across every main activity + Active Desk for selectedDate
   const todaySnapshot = useMemo(() => {
     const todayItems = effectiveEntries.filter(
-      (e) => e.type !== 'day_boundary' && isSameLocalDate(e.startTime, selectedDate)
+      (e) => e.type !== 'day_boundary' && isEntryOnLocalDate(e, selectedDate)
     );
     let study = 0;
     let sleep = 0;
@@ -513,24 +511,47 @@ export const ActivityProgressStudio: React.FC<ActivityProgressStudioProps> = ({
                 const isVirtualDesk =
                   entry.id === '__live_desk_session__' || entry.id.startsWith('__legacy_desk_');
 
+                const sessionNotesList =
+                  Array.isArray(entry.notes) && entry.notes.length > 0
+                    ? entry.notes.map((n) => n.text)
+                    : entry.note
+                    ? [entry.note]
+                    : [];
+
                 return (
                   <div
                     key={entry.id}
-                    className="px-3.5 py-2.5 bg-zinc-950/60 hover:bg-zinc-900/50 transition-colors flex items-center justify-between gap-3 text-xs font-mono"
+                    className="px-3.5 py-2.5 bg-zinc-950/60 hover:bg-zinc-900/50 transition-colors flex items-start justify-between gap-3 text-xs font-mono"
                   >
-                    <div className="flex flex-wrap items-center gap-2 min-w-0">
-                      <span className="text-zinc-100 font-semibold truncate">
-                        {entry.topic || entry.type}
-                      </span>
-                      <span aria-hidden="true" className="text-zinc-700">·</span>
-                      <span className="text-zinc-400">
-                        {timeframe !== 'hours' ? `${dateTag} ` : ''}
-                        {sStr} → {eStr}
-                      </span>
-                      <span aria-hidden="true" className="text-zinc-700">·</span>
-                      <span className="text-cyan-300 tabular-nums font-semibold">
-                        {formatMinutesHm(entry.durationMinutes || 0)}
-                      </span>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <span className="text-zinc-100 font-semibold truncate">
+                          {entry.topic || entry.type}
+                        </span>
+                        <span aria-hidden="true" className="text-zinc-700">·</span>
+                        <span className="text-zinc-400">
+                          {timeframe !== 'hours' ? `${dateTag} ` : ''}
+                          {sStr} → {eStr}
+                        </span>
+                        <span aria-hidden="true" className="text-zinc-700">·</span>
+                        <span className="text-cyan-300 tabular-nums font-semibold">
+                          {formatMinutesHm(entry.durationMinutes || 0)}
+                        </span>
+                        {entry.assignedDate && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
+                            {entry.assignedDate}
+                          </span>
+                        )}
+                      </div>
+                      {sessionNotesList.length > 0 && (
+                        <div className="text-[11px] font-sans text-zinc-300/90 pl-2 border-l border-cyan-500/40 space-y-0.5">
+                          {sessionNotesList.map((txt, idx) => (
+                            <p key={idx} className="truncate" title={txt}>
+                              {txt}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {onDeleteEntry && !isVirtualDesk && (
@@ -566,7 +587,6 @@ export const ActivityProgressStudio: React.FC<ActivityProgressStudioProps> = ({
             entries={entries}
             habits={habits}
             vaultEntries={vaultEntries}
-            hourlyReviewQueue={hourlyReviewQueue}
             achievementsCount={achievementsCount}
             profile={fallbackProfile}
             selectedDate={selectedDate}

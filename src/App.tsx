@@ -4,11 +4,10 @@ import { AchievementNewsTicker } from './components/AchievementNewsTicker';
 import { AchievementsTab } from './components/AchievementsTab';
 import { BreakBankCard } from './components/BreakBankCard';
 import { CustomHabitsManager, DEFAULT_HABITS } from './components/CustomHabitsManager';
-import { DateNavigator, formatLocalYMD, isSameLocalDate } from './components/DateNavigator';
+import { DateNavigator } from './components/DateNavigator';
 import { DailyCompletionStatus, DayCloseModal } from './components/DayCloseModal';
 import { DeskQuickLogger } from './components/DeskQuickLogger';
 import { HabitCard } from './components/HabitCard';
-import { HourlyCheckInModal, PendingHourPrompt } from './components/HourlyCheckInModal';
 import { InsightsTips } from './components/InsightsTips';
 import { IntroAnimation } from './components/IntroAnimation';
 import { LifeShortcodeDrawer } from './components/LifeShortcodeDrawer';
@@ -16,7 +15,6 @@ import { MotivationModal } from './components/MotivationModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { PastDayAuditBanner, UnreconciledPastDay } from './components/PastDayAuditBanner';
 import { ResetInfoModal } from './components/ResetInfoModal';
-import { ReviewQueue } from './components/ReviewQueue';
 import { RobotTutorialModal } from './components/RobotTutorialModal';
 import { SleepTrackerCard } from './components/SleepTrackerCard';
 import { StudioDesignPicker, THEME_DEFAULT_TEXT_STYLE } from './components/StudioDesignPicker';
@@ -35,12 +33,24 @@ import { useLocalProfile } from './context/LocalProfileContext';
 import { playDeskClick, playEarnedChime } from './lib/audioAlert';
 import { readLocalAsync, readLocalSync, STORAGE_KEYS, writeLocalData } from './lib/localDb';
 import {
+  addNoteToActiveSession,
+  BASE_BREAK_QUOTA_MINUTES,
+  BASE_STUDY_TARGET_MINUTES,
+  buildCompletedEntryFromSession,
+  formatLocalYMD,
+  getEffectiveWriteDate,
+  getSessionAssignedDate,
+  getSessionElapsedMs,
+  isEntryOnLocalDate,
+  normalizeActiveSession,
+  processDailyRollover,
+} from './lib/sessionRollover';
+import {
   AchievementItem,
   ActiveSession,
   CustomHabit,
   EntryType,
   GapItem,
-  HourlyReviewItem,
   StudioTextStyleId,
   StudioThemeId,
   TickerSettings,
@@ -50,6 +60,10 @@ import {
 
 interface PersistedAppState {
   activeSession: ActiveSession | null;
+  activeDate?: string;
+  lastRolloverDate?: string;
+  rolledOverDates?: string[];
+  reconciledDates?: string[];
   isDeskLoggedIn: boolean;
   deskLoginTimestamp: string | null;
   isDeskTimerPaused?: boolean;
@@ -62,6 +76,10 @@ interface PersistedAppState {
 
 const getDefaultAppState = (): PersistedAppState => ({
   activeSession: null,
+  activeDate: formatLocalYMD(new Date()),
+  lastRolloverDate: '',
+  rolledOverDates: [],
+  reconciledDates: [],
   isDeskLoggedIn: true,
   deskLoginTimestamp: new Date().toISOString(),
   isDeskTimerPaused: false,
@@ -71,16 +89,6 @@ const getDefaultAppState = (): PersistedAppState => ({
   bankedCarryForwardMinutes: 0,
   carriedDates: [],
 });
-
-function getSessionElapsedMs(session: ActiveSession | null, nowMs = Date.now()): number {
-  if (!session) return 0;
-  const startMs = new Date(session.startTime).getTime();
-  if (isNaN(startMs)) return 0;
-  const endMs =
-    session.isPaused && session.pausedAt ? new Date(session.pausedAt).getTime() : nowMs;
-  const pausedMs = session.accumulatedPausedMs || 0;
-  return Math.max(0, endMs - startMs - pausedMs);
-}
 
 const DEFAULT_TICKER_SETTINGS: TickerSettings = {
   intervalSeconds: 120, // Default every 2 minutes
@@ -99,34 +107,49 @@ const DEFAULT_TUTORIAL_PREFS: TutorialPrefs = {
   claimedBonus: false,
 };
 
-interface HourlyReminderPrefs {
-  enabled: boolean;
-  autoQueueBlankHours: boolean;
-}
-
-const DEFAULT_HOURLY_REMINDER_PREFS: HourlyReminderPrefs = {
-  enabled: true,
-  autoQueueBlankHours: true,
-};
-
 export default function App() {
   const { profile, addXp } = useLocalProfile();
 
   const [currentTab, setCurrentTab] = useState<
-    'desk' | 'timeline' | 'achievements' | 'vault' | 'review'
+    'desk' | 'timeline' | 'achievements' | 'vault'
   >('desk');
-
-  const [selectedDate, setSelectedDate] = useState<string>(() => formatLocalYMD(new Date()));
 
   // Persisted core app state
   const initialAppState = useMemo(
     () => readLocalSync<PersistedAppState>(STORAGE_KEYS.APP_STATE, getDefaultAppState()),
     []
   );
+  const initialNormalizedSession = useMemo(
+    () => normalizeActiveSession(initialAppState.activeSession),
+    [initialAppState]
+  );
+  const initialActiveDate = useMemo(() => {
+    if (initialNormalizedSession) {
+      return getSessionAssignedDate(initialNormalizedSession);
+    }
+    return initialAppState.activeDate || formatLocalYMD(new Date());
+  }, [initialNormalizedSession, initialAppState]);
 
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(
-    initialAppState.activeSession
+    initialNormalizedSession
   );
+  const [activeDate, setActiveDate] = useState<string>(initialActiveDate);
+  const [selectedDate, setSelectedDate] = useState<string>(() =>
+    initialNormalizedSession ? getSessionAssignedDate(initialNormalizedSession) : formatLocalYMD(new Date())
+  );
+  const [currentSystemDate, setCurrentSystemDate] = useState<string>(() =>
+    formatLocalYMD(new Date())
+  );
+  const [lastRolloverDate, setLastRolloverDate] = useState<string>(
+    initialAppState.lastRolloverDate || ''
+  );
+  const [rolledOverDates, setRolledOverDates] = useState<string[]>(
+    initialAppState.rolledOverDates || []
+  );
+  const [reconciledDates, setReconciledDates] = useState<string[]>(
+    initialAppState.reconciledDates || []
+  );
+
   const [activeSeconds, setActiveSeconds] = useState<number>(0);
   const [isDeskLoggedIn, setIsDeskLoggedIn] = useState<boolean>(initialAppState.isDeskLoggedIn);
   const [deskLoginTimestamp, setDeskLoginTimestamp] = useState<string | null>(
@@ -157,18 +180,6 @@ export default function App() {
   const [vaultEntries, setVaultEntries] = useState<VaultEntry[]>(() =>
     readLocalSync<VaultEntry[]>(STORAGE_KEYS.VAULT_ENTRIES, [])
   );
-  const [hourlyReviewQueue, setHourlyReviewQueue] = useState<HourlyReviewItem[]>(() =>
-    readLocalSync<HourlyReviewItem[]>(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, [])
-  );
-  const [hourlyReminderPrefs, setHourlyReminderPrefs] = useState<HourlyReminderPrefs>(() => ({
-    ...DEFAULT_HOURLY_REMINDER_PREFS,
-    ...readLocalSync<Partial<HourlyReminderPrefs>>(
-      STORAGE_KEYS.HOURLY_REMINDER_PREFS,
-      DEFAULT_HOURLY_REMINDER_PREFS
-    ),
-  }));
-  const [pendingHourPrompt, setPendingHourPrompt] = useState<PendingHourPrompt | null>(null);
-  const [secondsUntilNextReminder, setSecondsUntilNextReminder] = useState<number>(3600);
   const [toFillGaps, setToFillGaps] = useState<GapItem[]>(() =>
     readLocalSync<GapItem[]>(STORAGE_KEYS.TO_FILL_GAPS, [])
   );
@@ -328,6 +339,7 @@ export default function App() {
   };
 
   const hasHydratedIdb = useRef(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const preHydrationActionRef = useRef(false);
 
   // Hydrate cleanly from IndexedDB on initial mount & re-sync cleanly when a JSON backup is imported
@@ -338,11 +350,6 @@ export default function App() {
       Promise.all([
         readLocalAsync<TimeEntry[]>(STORAGE_KEYS.TIME_ENTRIES, []),
         readLocalAsync<VaultEntry[]>(STORAGE_KEYS.VAULT_ENTRIES, []),
-        readLocalAsync<HourlyReviewItem[]>(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, []),
-        readLocalAsync<Partial<HourlyReminderPrefs>>(
-          STORAGE_KEYS.HOURLY_REMINDER_PREFS,
-          DEFAULT_HOURLY_REMINDER_PREFS
-        ),
         readLocalAsync<GapItem[]>(STORAGE_KEYS.TO_FILL_GAPS, []),
         readLocalAsync<CustomHabit[]>(STORAGE_KEYS.CUSTOM_HABITS, DEFAULT_HABITS),
         readLocalAsync<AchievementItem[]>(STORAGE_KEYS.ACHIEVEMENTS, []),
@@ -353,8 +360,6 @@ export default function App() {
         ([
           loadedEntries,
           loadedVault,
-          loadedHourlyQueue,
-          loadedHourlyPrefs,
           loadedGaps,
           loadedHabits,
           loadedAchievements,
@@ -370,11 +375,6 @@ export default function App() {
           if (!skipOverwrite) {
             if (forceImportSync || loadedEntries.length > 0) setEntries(loadedEntries);
             if (forceImportSync || loadedVault.length > 0) setVaultEntries(loadedVault);
-            if (forceImportSync || loadedHourlyQueue.length > 0)
-              setHourlyReviewQueue(loadedHourlyQueue);
-            if (loadedHourlyPrefs) {
-              setHourlyReminderPrefs({ ...DEFAULT_HOURLY_REMINDER_PREFS, ...loadedHourlyPrefs });
-            }
             if (forceImportSync || loadedGaps.length > 0) setToFillGaps(loadedGaps);
             if (forceImportSync || loadedHabits.length > 0) {
               const normalizedHabits = (loadedHabits.length > 0 ? loadedHabits : DEFAULT_HABITS).map(
@@ -404,32 +404,97 @@ export default function App() {
               }
             }
             if (loadedAppState) {
-              const normalizedSession = loadedAppState.activeSession
-                ? {
-                    isPaused: false,
-                    pausedAt: null,
-                    accumulatedPausedMs: 0,
-                    ...loadedAppState.activeSession,
-                  }
-                : null;
-              setActiveSession(normalizedSession);
-              setIsDeskLoggedIn(
+              const normalizedSession = normalizeActiveSession(loadedAppState.activeSession);
+              const todayYmd = formatLocalYMD(new Date());
+              const loadedIsDeskLoggedIn =
                 typeof loadedAppState.isDeskLoggedIn === 'boolean'
                   ? loadedAppState.isDeskLoggedIn
-                  : true
-              );
-              setDeskLoginTimestamp(
+                  : true;
+              const loadedDeskLoginTimestamp =
                 loadedAppState.deskLoginTimestamp ||
-                  (loadedAppState.isDeskLoggedIn ? new Date().toISOString() : null)
-              );
-              setIsDeskTimerPaused(!!loadedAppState.isDeskTimerPaused);
-              setDeskPausedAt(loadedAppState.deskPausedAt || null);
-              setDeskAccumulatedPausedMs(loadedAppState.deskAccumulatedPausedMs || 0);
-              setStudyDeficitCarryForwardMinutes(
-                loadedAppState.studyDeficitCarryForwardMinutes || 0
-              );
-              setBankedCarryForwardMinutes(loadedAppState.bankedCarryForwardMinutes || 0);
-              setCarriedDates(loadedAppState.carriedDates || []);
+                (loadedIsDeskLoggedIn ? new Date().toISOString() : null);
+              const loadedIsDeskTimerPaused = !!loadedAppState.isDeskTimerPaused;
+              const loadedDeskPausedAt = loadedAppState.deskPausedAt || null;
+              const loadedDeskAccumulatedPausedMs = loadedAppState.deskAccumulatedPausedMs || 0;
+              const loadedStudyDeficit = loadedAppState.studyDeficitCarryForwardMinutes || 0;
+              const loadedBankedCarry = loadedAppState.bankedCarryForwardMinutes || 0;
+              const loadedCarriedDates = loadedAppState.carriedDates || [];
+              const loadedRolledOverDates = loadedAppState.rolledOverDates || [];
+              const loadedReconciledDates = loadedAppState.reconciledDates || [];
+              const loadedLastRolloverDate = loadedAppState.lastRolloverDate || '';
+
+              setActiveSession(normalizedSession);
+              setIsDeskLoggedIn(loadedIsDeskLoggedIn);
+
+              if (normalizedSession) {
+                // Active session crosses midnight safely: keep its assignedDate and do NOT roll over
+                const sessionDate = getSessionAssignedDate(normalizedSession);
+                setActiveDate(sessionDate);
+                setSelectedDate(sessionDate);
+                setDeskLoginTimestamp(loadedDeskLoginTimestamp);
+                setIsDeskTimerPaused(loadedIsDeskTimerPaused);
+                setDeskPausedAt(loadedDeskPausedAt);
+                setDeskAccumulatedPausedMs(loadedDeskAccumulatedPausedMs);
+                setStudyDeficitCarryForwardMinutes(loadedStudyDeficit);
+                setBankedCarryForwardMinutes(loadedBankedCarry);
+                setCarriedDates(loadedCarriedDates);
+                setRolledOverDates(loadedRolledOverDates);
+                setReconciledDates(loadedReconciledDates);
+                setLastRolloverDate(loadedLastRolloverDate);
+              } else {
+                const candidateActiveDate = loadedAppState.activeDate || todayYmd;
+                if (candidateActiveDate < todayYmd) {
+                  // Browser reopened on a new day with NO active session -> process rollover once cleanly
+                  const effectiveEntries =
+                    loadedEntries.length > 0 || forceImportSync ? loadedEntries : entries;
+                  const effectiveVault =
+                    loadedVault.length > 0 || forceImportSync ? loadedVault : vaultEntries;
+
+                  const rollover = processDailyRollover({
+                    fromDate: candidateActiveDate,
+                    toDate: todayYmd,
+                    entries: effectiveEntries,
+                    vaultEntries: effectiveVault,
+                    carriedDates: loadedCarriedDates,
+                    rolledOverDates: loadedRolledOverDates,
+                    reconciledDates: loadedReconciledDates,
+                    studyDeficitCarryForwardMinutes: loadedStudyDeficit,
+                    bankedCarryForwardMinutes: loadedBankedCarry,
+                    activeSession: null,
+                    isDeskLoggedIn: loadedIsDeskLoggedIn,
+                    deskLoginTimestamp: loadedDeskLoginTimestamp,
+                    isDeskTimerPaused: loadedIsDeskTimerPaused,
+                    deskPausedAt: loadedDeskPausedAt,
+                    deskAccumulatedPausedMs: loadedDeskAccumulatedPausedMs,
+                  });
+
+                  setEntries(rollover.nextEntries);
+                  setDeskLoginTimestamp(rollover.nextDeskLoginTimestamp);
+                  setIsDeskTimerPaused(loadedIsDeskTimerPaused);
+                  setDeskPausedAt(rollover.nextDeskPausedAt);
+                  setDeskAccumulatedPausedMs(rollover.nextDeskAccumulatedPausedMs);
+                  setStudyDeficitCarryForwardMinutes(rollover.nextStudyDeficitCarryForwardMinutes);
+                  setBankedCarryForwardMinutes(rollover.nextBankedCarryForwardMinutes);
+                  setCarriedDates(rollover.nextCarriedDates);
+                  setRolledOverDates(rollover.nextRolledOverDates);
+                  setReconciledDates(loadedReconciledDates);
+                  setLastRolloverDate(rollover.nextLastRolloverDate);
+                  setActiveDate(rollover.nextActiveDate);
+                  setSelectedDate(rollover.nextActiveDate);
+                } else {
+                  setDeskLoginTimestamp(loadedDeskLoginTimestamp);
+                  setIsDeskTimerPaused(loadedIsDeskTimerPaused);
+                  setDeskPausedAt(loadedDeskPausedAt);
+                  setDeskAccumulatedPausedMs(loadedDeskAccumulatedPausedMs);
+                  setStudyDeficitCarryForwardMinutes(loadedStudyDeficit);
+                  setBankedCarryForwardMinutes(loadedBankedCarry);
+                  setCarriedDates(loadedCarriedDates);
+                  setRolledOverDates(loadedRolledOverDates);
+                  setReconciledDates(loadedReconciledDates);
+                  setLastRolloverDate(loadedLastRolloverDate);
+                  setActiveDate(candidateActiveDate);
+                }
+              }
             }
           }
 
@@ -447,6 +512,7 @@ export default function App() {
           }
 
           hasHydratedIdb.current = true;
+          setIsHydrated(true);
         }
       );
     };
@@ -460,6 +526,7 @@ export default function App() {
       active = false;
       window.removeEventListener('ptt-data-imported', handleBackupImported);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const mountedRef = useRef(false);
@@ -485,16 +552,6 @@ export default function App() {
 
   useEffect(() => {
     if (!shouldPersist()) return;
-    void writeLocalData(STORAGE_KEYS.HOURLY_REVIEW_QUEUE, hourlyReviewQueue);
-  }, [hourlyReviewQueue]);
-
-  useEffect(() => {
-    if (!shouldPersist()) return;
-    void writeLocalData(STORAGE_KEYS.HOURLY_REMINDER_PREFS, hourlyReminderPrefs);
-  }, [hourlyReminderPrefs]);
-
-  useEffect(() => {
-    if (!shouldPersist()) return;
     void writeLocalData(STORAGE_KEYS.TO_FILL_GAPS, toFillGaps);
   }, [toFillGaps]);
 
@@ -517,6 +574,10 @@ export default function App() {
     if (!shouldPersist()) return;
     void writeLocalData<PersistedAppState>(STORAGE_KEYS.APP_STATE, {
       activeSession,
+      activeDate,
+      lastRolloverDate,
+      rolledOverDates,
+      reconciledDates,
       isDeskLoggedIn,
       deskLoginTimestamp,
       isDeskTimerPaused,
@@ -528,6 +589,10 @@ export default function App() {
     });
   }, [
     activeSession,
+    activeDate,
+    lastRolloverDate,
+    rolledOverDates,
+    reconciledDates,
     isDeskLoggedIn,
     deskLoginTimestamp,
     isDeskTimerPaused,
@@ -579,13 +644,13 @@ export default function App() {
     return () => clearInterval(interval);
   }, [activeSession]);
 
-  // Selected date's aggregated study, break, and sleep minutes (in local calendar date)
+  // Selected date's aggregated study, break, and sleep minutes (respecting session assignedDate)
   const { studyMinutesToday, breakMinutesToday, sleepMinutesToday } = useMemo(() => {
     let study = 0;
     let brk = 0;
     let sleep = 0;
     entries.forEach((e) => {
-      if (isSameLocalDate(e.startTime, selectedDate)) {
+      if (isEntryOnLocalDate(e, selectedDate)) {
         if (e.type === 'study' || e.type === 'content') {
           study += e.durationMinutes || 0;
         } else if (e.type === 'break') {
@@ -599,156 +664,115 @@ export default function App() {
   }, [entries, selectedDate]);
 
   // Deficit and Surplus for selected date
-  const BASE_STUDY_TARGET = 360; // 6h (360m)
-  const BASE_BREAK_QUOTA = 120; // 2h (120m)
+  const BASE_STUDY_TARGET = BASE_STUDY_TARGET_MINUTES; // 6h (360m)
+  const BASE_BREAK_QUOTA = BASE_BREAK_QUOTA_MINUTES; // 2h (120m)
   const effectiveStudyTarget = BASE_STUDY_TARGET + studyDeficitCarryForwardMinutes;
   const studyDeficitMinutes = Math.max(0, effectiveStudyTarget - studyMinutesToday);
   const breakSurplusMinutes = Math.max(0, BASE_BREAK_QUOTA - breakMinutesToday);
 
-  // Calculate tracked minutes within any specific 1-hour slot [dateYmd, hour]
-  const getTrackedMinutesForHour = (dateYmd: string, hour: number): number => {
-    const slotStart = new Date(`${dateYmd}T${hour.toString().padStart(2, '0')}:00:00`).getTime();
-    const slotEnd = slotStart + 3600 * 1000;
-    let totalMins = 0;
+  // Track current system local calendar date (00:00 detection & window focus)
+  useEffect(() => {
+    const syncSystemDate = () => {
+      const ymd = formatLocalYMD(new Date());
+      setCurrentSystemDate((prev) => (prev === ymd ? prev : ymd));
+    };
+    const interval = window.setInterval(syncSystemDate, 15000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') syncSystemDate();
+    };
+    window.addEventListener('focus', syncSystemDate);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', syncSystemDate);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
-    entries.forEach((e) => {
-      if (e.type === 'day_boundary') return;
-      const startMs = new Date(e.startTime).getTime();
-      if (isNaN(startMs)) return;
-      const dur =
-        e.durationMinutes ||
-        (e.type === 'music' ? 180 : e.type === 'sleep' ? 480 : 0);
-      const endMs = e.endTime ? new Date(e.endTime).getTime() : startMs + dur * 60000;
-      const overlap = Math.min(endMs, slotEnd) - Math.max(startMs, slotStart);
-      if (overlap > 0) totalMins += overlap / 60000;
+  // Session-aware Daily Rollover:
+  // Only rolls over past activeDate -> currentSystemDate when NO active session is running.
+  // If a study, break, sleep, or other session is active across midnight, rollover waits until stop.
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (activeSession) return;
+    if (!activeDate || activeDate >= currentSystemDate) return;
+
+    const rollover = processDailyRollover({
+      fromDate: activeDate,
+      toDate: currentSystemDate,
+      entries,
+      vaultEntries,
+      carriedDates,
+      rolledOverDates,
+      reconciledDates,
+      studyDeficitCarryForwardMinutes,
+      bankedCarryForwardMinutes,
+      activeSession: null,
+      isDeskLoggedIn,
+      deskLoginTimestamp,
+      isDeskTimerPaused,
+      deskPausedAt,
+      deskAccumulatedPausedMs,
     });
 
-    if (activeSession) {
-      const aStart = new Date(activeSession.startTime).getTime();
-      const overlap = Math.min(Date.now(), slotEnd) - Math.max(aStart, slotStart);
-      if (overlap > 0) totalMins += overlap / 60000;
+    if (!rollover.didRollover) return;
+
+    if (rollover.nextEntries !== entries) {
+      setEntries(rollover.nextEntries);
     }
-
-    return Math.min(60, Math.round(totalMins));
-  };
-
-  // Every 1 Hour Reminder Loop & Automatic Uncounted-Hour Queueing
-  const nextReminderAtRef = useRef<number>(Date.now() + 3600 * 1000);
-  const checkedClockHourRef = useRef<string>(
-    `${formatLocalYMD(new Date())}_${new Date().getHours()}`
-  );
-
-  useEffect(() => {
-    if (!isDeskLoggedIn) return;
-
-    const tick = window.setInterval(() => {
-      const now = new Date();
-      const nowMs = now.getTime();
-      const secsLeft = Math.max(0, Math.ceil((nextReminderAtRef.current - nowMs) / 1000));
-      setSecondsUntilNextReminder(secsLeft);
-
-      // 1. Auto-detect when a clock hour finishes with blank/uncounted time while logged in
-      const currentKey = `${formatLocalYMD(now)}_${now.getHours()}`;
-      if (currentKey !== checkedClockHourRef.current) {
-        const prevHourDate = new Date(nowMs - 3600 * 1000);
-        const prevYmd = formatLocalYMD(prevHourDate);
-        const prevH = prevHourDate.getHours();
-        const prevId = `hour_${prevYmd}_${prevH}`;
-        checkedClockHourRef.current = currentKey;
-
-        if (hourlyReminderPrefs.autoQueueBlankHours) {
-          const tracked = getTrackedMinutesForHour(prevYmd, prevH);
-          if (tracked < 15) {
-            const uncounted = Math.max(15, 60 - tracked);
-            const hStart = `${prevH.toString().padStart(2, '0')}:00`;
-            const hEnd = `${((prevH + 1) % 24).toString().padStart(2, '0')}:00`;
-            const startIso = new Date(`${prevYmd}T${hStart}:00`).toISOString();
-            const endIso = new Date(new Date(startIso).getTime() + 3600 * 1000).toISOString();
-
-            setHourlyReviewQueue((prev) => {
-              if (prev.some((q) => q.id === prevId)) return prev;
-              return [
-                {
-                  id: prevId,
-                  date: prevYmd,
-                  hour: prevH,
-                  hourLabel: `${hStart} – ${hEnd}`,
-                  startTime: startIso,
-                  endTime: endIso,
-                  uncountedMinutes: uncounted,
-                  source: 'hourly_auto',
-                  createdAt: new Date().toISOString(),
-                },
-                ...prev,
-              ];
-            });
-          }
-        }
-      }
-
-      // 2. Every 60-minute desk reminder asks "What did you do this hour?"
-      if (nowMs >= nextReminderAtRef.current) {
-        nextReminderAtRef.current = nowMs + 3600 * 1000;
-        setSecondsUntilNextReminder(3600);
-
-        const endD = new Date(nowMs);
-        const startD = new Date(nowMs - 3600 * 1000);
-        const slotYmd = formatLocalYMD(startD);
-        const slotHour = startD.getHours();
-        const tracked = getTrackedMinutesForHour(slotYmd, slotHour);
-
-        if (tracked < 45) {
-          const fmt = (d: Date) =>
-            `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-          const promptObj: PendingHourPrompt = {
-            id: `hour_prompt_${slotYmd}_${slotHour}_${nowMs}`,
-            date: slotYmd,
-            hour: slotHour,
-            hourLabel: `${fmt(startD)} – ${fmt(endD)}`,
-            startTime: startD.toISOString(),
-            endTime: endD.toISOString(),
-            uncountedMinutes: Math.max(15, 60 - tracked),
-          };
-
-          if (hourlyReminderPrefs.enabled) {
-            playEarnedChime();
-            setPendingHourPrompt(promptObj);
-          } else if (hourlyReminderPrefs.autoQueueBlankHours) {
-            setHourlyReviewQueue((prev) => [
-              {
-                ...promptObj,
-                source: 'hourly_auto',
-                createdAt: new Date().toISOString(),
-              },
-              ...prev,
-            ]);
-          }
-        }
-      }
-    }, 1000);
-
-    return () => window.clearInterval(tick);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDeskLoggedIn, hourlyReminderPrefs, entries, activeSession]);
+    if (rollover.nextDeskLoginTimestamp !== deskLoginTimestamp) {
+      setDeskLoginTimestamp(rollover.nextDeskLoginTimestamp);
+    }
+    if (rollover.nextDeskPausedAt !== deskPausedAt) {
+      setDeskPausedAt(rollover.nextDeskPausedAt);
+    }
+    if (rollover.nextDeskAccumulatedPausedMs !== deskAccumulatedPausedMs) {
+      setDeskAccumulatedPausedMs(rollover.nextDeskAccumulatedPausedMs);
+    }
+    setStudyDeficitCarryForwardMinutes(rollover.nextStudyDeficitCarryForwardMinutes);
+    setBankedCarryForwardMinutes(rollover.nextBankedCarryForwardMinutes);
+    setCarriedDates(rollover.nextCarriedDates);
+    setRolledOverDates(rollover.nextRolledOverDates);
+    setLastRolloverDate(rollover.nextLastRolloverDate);
+    setActiveDate(rollover.nextActiveDate);
+    setSelectedDate((prev) => (prev === activeDate ? rollover.nextActiveDate : prev));
+  }, [
+    isHydrated,
+    activeSession,
+    activeDate,
+    currentSystemDate,
+    entries,
+    vaultEntries,
+    carriedDates,
+    rolledOverDates,
+    reconciledDates,
+    studyDeficitCarryForwardMinutes,
+    bankedCarryForwardMinutes,
+    isDeskLoggedIn,
+    deskLoginTimestamp,
+    isDeskTimerPaused,
+    deskPausedAt,
+    deskAccumulatedPausedMs,
+  ]);
 
   // Check if Riyaz is ticked on selectedDate
   const todayRiyazEntry = useMemo(() => {
     return entries.find(
-      (e) => e.type === 'music' && isSameLocalDate(e.startTime, selectedDate)
+      (e) => e.type === 'music' && isEntryOnLocalDate(e, selectedDate)
     );
   }, [entries, selectedDate]);
 
   // Check latest Sleep entry logged on selectedDate
   const todaySleepEntry = useMemo(() => {
     const matches = entries.filter(
-      (e) => e.type === 'sleep' && isSameLocalDate(e.startTime, selectedDate)
+      (e) => e.type === 'sleep' && isEntryOnLocalDate(e, selectedDate)
     );
     return matches.length > 0 ? matches[matches.length - 1] : undefined;
   }, [entries, selectedDate]);
 
   // Last logged entry for selectedDate (used for quick undo)
   const lastLoggedEntry = useMemo(() => {
-    const todayList = entries.filter((e) => isSameLocalDate(e.startTime, selectedDate));
+    const todayList = entries.filter((e) => isEntryOnLocalDate(e, selectedDate));
     return todayList.length > 0 ? todayList[todayList.length - 1] : null;
   }, [entries, selectedDate]);
 
@@ -786,7 +810,7 @@ export default function App() {
       if (!isVaulted && !isCarried) {
         let loggedStudy = 0;
         entries.forEach((e) => {
-          if (isSameLocalDate(e.startTime, item.date)) {
+          if (isEntryOnLocalDate(e, item.date)) {
             if (e.type === 'study' || e.type === 'content') {
               loggedStudy += e.durationMinutes || 0;
             }
@@ -813,7 +837,7 @@ export default function App() {
     const habitsStatus = habits.map((h) => {
       const isCompleted = entries.some(
         (e) =>
-          isSameLocalDate(e.startTime, selectedDate) &&
+          isEntryOnLocalDate(e, selectedDate) &&
           (e.habitId === h.id ||
             e.type === h.entryType ||
             (e.topic && e.topic.toLowerCase().includes(h.shortcode.toLowerCase())))
@@ -875,20 +899,102 @@ export default function App() {
     );
   };
 
-  // Start Session
-  const handleStartSession = (type: EntryType, topic?: string) => {
-    if (activeSession) {
-      handleStopSession();
+  // Shared synchronous finalizer so Stop / Switch / Logout never lose or misdate entries or double-rollover
+  const awardXpForSession = (session: ActiveSession, elapsedMins: number) => {
+    if (session.type === 'study') {
+      const earnedXp = Math.min(60, Math.round(elapsedMins * 0.5));
+      addXp(earnedXp);
+    } else if (session.type === 'sleep') {
+      addXp(30);
     }
+  };
+
+  // Start Session (safely finalizes any previous running session & processes pending rollover first)
+  const handleStartSession = (type: EntryType, topic?: string) => {
+    const now = new Date();
+    const todayYmd = formatLocalYMD(now);
+    let workingEntries = entries;
+    let workingStudyDeficit = studyDeficitCarryForwardMinutes;
+    let workingBankedCarry = bankedCarryForwardMinutes;
+    let workingCarriedDates = carriedDates;
+    let workingRolledOverDates = rolledOverDates;
+    let workingDeskLoginTs = deskLoginTimestamp;
+    let workingDeskPausedAt = deskPausedAt;
+    let workingDeskPausedMs = deskAccumulatedPausedMs;
+    let workingActiveDate = activeDate;
+
+    if (activeSession) {
+      const completedEntry = buildCompletedEntryFromSession(activeSession, now);
+      workingEntries = [...workingEntries, completedEntry].sort(
+        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      );
+      awardXpForSession(activeSession, completedEntry.durationMinutes || 0);
+      workingActiveDate = getSessionAssignedDate(activeSession);
+    }
+
+    if (workingActiveDate < todayYmd) {
+      const rollover = processDailyRollover({
+        fromDate: workingActiveDate,
+        toDate: todayYmd,
+        entries: workingEntries,
+        vaultEntries,
+        carriedDates: workingCarriedDates,
+        rolledOverDates: workingRolledOverDates,
+        reconciledDates,
+        studyDeficitCarryForwardMinutes: workingStudyDeficit,
+        bankedCarryForwardMinutes: workingBankedCarry,
+        activeSession: null,
+        isDeskLoggedIn,
+        deskLoginTimestamp: workingDeskLoginTs,
+        isDeskTimerPaused,
+        deskPausedAt: workingDeskPausedAt,
+        deskAccumulatedPausedMs: workingDeskPausedMs,
+        now,
+      });
+
+      workingEntries = rollover.nextEntries;
+      workingStudyDeficit = rollover.nextStudyDeficitCarryForwardMinutes;
+      workingBankedCarry = rollover.nextBankedCarryForwardMinutes;
+      workingCarriedDates = rollover.nextCarriedDates;
+      workingRolledOverDates = rollover.nextRolledOverDates;
+      workingDeskLoginTs = rollover.nextDeskLoginTimestamp;
+      workingDeskPausedAt = rollover.nextDeskPausedAt;
+      workingDeskPausedMs = rollover.nextDeskAccumulatedPausedMs;
+      workingActiveDate = rollover.nextActiveDate;
+
+      setStudyDeficitCarryForwardMinutes(workingStudyDeficit);
+      setBankedCarryForwardMinutes(workingBankedCarry);
+      setCarriedDates(workingCarriedDates);
+      setRolledOverDates(workingRolledOverDates);
+      setLastRolloverDate(rollover.nextLastRolloverDate);
+      setDeskLoginTimestamp(workingDeskLoginTs);
+      setDeskPausedAt(workingDeskPausedAt);
+      setDeskAccumulatedPausedMs(workingDeskPausedMs);
+      setActiveDate(workingActiveDate);
+      setSelectedDate(workingActiveDate);
+    }
+
+    if (workingEntries !== entries) {
+      setEntries(workingEntries);
+    }
+
+    const sessionAssignedDate = workingActiveDate || todayYmd;
     setActiveSession({
       type,
       topic: topic || (type === 'study' ? 'General Study' : type === 'life' ? 'Life Activity' : 'Break'),
-      startTime: new Date().toISOString(),
+      startTime: now.toISOString(),
+      assignedDate: sessionAssignedDate,
+      notes: [],
       isPaused: false,
       pausedAt: null,
       accumulatedPausedMs: 0,
     });
     setActiveSeconds(0);
+  };
+
+  // Add a note to the active session strictly anchored to the session's original assignedDate
+  const handleAddSessionNote = (noteText: string) => {
+    setActiveSession((prev) => (prev ? addNoteToActiveSession(prev, noteText, new Date()) : prev));
   };
 
   // Pause / Resume Active Activity Session Timer
@@ -934,9 +1040,10 @@ export default function App() {
   const handleLogLifeActivity = (options: { topic: string; durationMinutes: number }) => {
     const mins = Math.max(1, options.durationMinutes);
     const now = new Date();
-    const isTodaySelected = selectedDate === formatLocalYMD(now);
+    const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
+    const isCurrentCalendarWrite = writeDate === formatLocalYMD(now);
 
-    const endD = isTodaySelected ? now : new Date(`${selectedDate}T20:00:00`);
+    const endD = isCurrentCalendarWrite || activeSession ? now : new Date(`${writeDate}T20:00:00`);
     const startD = new Date(endD.getTime() - mins * 60000);
 
     const newEntry: TimeEntry = {
@@ -948,6 +1055,7 @@ export default function App() {
       startTime: startD.toISOString(),
       endTime: endD.toISOString(),
       durationMinutes: mins,
+      assignedDate: writeDate,
       source: 'shortcode',
       createdAt: now.toISOString(),
     };
@@ -959,41 +1067,63 @@ export default function App() {
     );
   };
 
-  // Stop Session (subtracts any paused time cleanly)
+  // Stop Session: saves complete duration & notes against original assignedDate, then processes daily rollover if past midnight
   const handleStopSession = () => {
     if (!activeSession) return;
-    const nowIso = new Date().toISOString();
-    const activeMs = getSessionElapsedMs(activeSession);
-    const elapsedMins = Math.max(1, Math.round(activeMs / 60000));
+    const now = new Date();
+    const todayYmd = formatLocalYMD(now);
+    const sessionAssignedDate = getSessionAssignedDate(activeSession);
+    const completedEntry = buildCompletedEntryFromSession(activeSession, now);
 
-    const newEntry: TimeEntry = {
-      id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      userId: 'local_desktop_user',
-      type: activeSession.type,
-      action: 'stop',
-      topic: activeSession.topic,
-      startTime: activeSession.startTime,
-      endTime: nowIso,
-      durationMinutes: elapsedMins,
-      source: 'manual',
-      createdAt: nowIso,
-    };
-
-    setEntries((prev) =>
-      [...prev, newEntry].sort(
-        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-      )
+    const updatedEntries = [...entries, completedEntry].sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
     );
 
-    if (activeSession.type === 'study') {
-      const earnedXp = Math.min(60, Math.round(elapsedMins * 0.5));
-      addXp(earnedXp);
-    } else if (activeSession.type === 'sleep') {
-      addXp(30);
-    }
-
+    awardXpForSession(activeSession, completedEntry.durationMinutes || 0);
     setActiveSession(null);
     setActiveSeconds(0);
+
+    const rolloverFromDate =
+      sessionAssignedDate < todayYmd
+        ? sessionAssignedDate
+        : activeDate < todayYmd
+        ? activeDate
+        : null;
+
+    if (rolloverFromDate) {
+      const rollover = processDailyRollover({
+        fromDate: rolloverFromDate,
+        toDate: todayYmd,
+        entries: updatedEntries,
+        vaultEntries,
+        carriedDates,
+        rolledOverDates,
+        reconciledDates,
+        studyDeficitCarryForwardMinutes,
+        bankedCarryForwardMinutes,
+        activeSession: null,
+        isDeskLoggedIn,
+        deskLoginTimestamp,
+        isDeskTimerPaused,
+        deskPausedAt,
+        deskAccumulatedPausedMs,
+        now,
+      });
+
+      setEntries(rollover.nextEntries);
+      setDeskLoginTimestamp(rollover.nextDeskLoginTimestamp);
+      setDeskPausedAt(rollover.nextDeskPausedAt);
+      setDeskAccumulatedPausedMs(rollover.nextDeskAccumulatedPausedMs);
+      setStudyDeficitCarryForwardMinutes(rollover.nextStudyDeficitCarryForwardMinutes);
+      setBankedCarryForwardMinutes(rollover.nextBankedCarryForwardMinutes);
+      setCarriedDates(rollover.nextCarriedDates);
+      setRolledOverDates(rollover.nextRolledOverDates);
+      setLastRolloverDate(rollover.nextLastRolloverDate);
+      setActiveDate(rollover.nextActiveDate);
+      setSelectedDate(rollover.nextActiveDate);
+    } else {
+      setEntries(updatedEntries);
+    }
   };
 
   // Delete / Undo any logged time entry
@@ -1013,13 +1143,14 @@ export default function App() {
     }
   };
 
-  // Log Custom Sleep Window (Bedtime -> Wake up) anytime on selectedDate
+  // Log Custom Sleep Window (Bedtime -> Wake up) strictly anchored to active writeDate
   const handleLogCustomSleep = (options: {
     startTimeIso: string;
     endTimeIso: string;
     durationMinutes: number;
     replaceExisting?: boolean;
   }) => {
+    const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
     const replaceId = options.replaceExisting && todaySleepEntry ? todaySleepEntry.id : null;
     if (replaceId) {
       addXp(-30);
@@ -1034,6 +1165,7 @@ export default function App() {
       startTime: options.startTimeIso,
       endTime: options.endTimeIso,
       durationMinutes: options.durationMinutes,
+      assignedDate: writeDate,
       source: 'manual',
       createdAt: new Date().toISOString(),
     };
@@ -1053,6 +1185,7 @@ export default function App() {
     endTimeIso?: string;
     durationMinutes?: number;
   }) => {
+    const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
     if (todayRiyazEntry && !options) {
       handleDeleteEntry(todayRiyazEntry.id);
       return;
@@ -1075,6 +1208,7 @@ export default function App() {
       startTime: startIso,
       endTime: endIso,
       durationMinutes: durMins,
+      assignedDate: writeDate,
       source: 'manual',
       createdAt: new Date().toISOString(),
     };
@@ -1094,7 +1228,7 @@ export default function App() {
     writeLocalData(STORAGE_KEYS.CUSTOM_HABITS, newHabits);
   };
 
-  // Generic Habit Toggle
+  // Generic Habit Toggle (respects active session's assignedDate)
   const handleToggleHabit = (
     habit: CustomHabit,
     options?: {
@@ -1103,12 +1237,13 @@ export default function App() {
       durationMinutes?: number;
     }
   ) => {
+    const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
     const existing = entries.find(
       (e) =>
         (e.habitId === habit.id ||
           e.type === habit.entryType ||
           (e.topic && e.topic.toLowerCase().includes(habit.shortcode.toLowerCase()))) &&
-        isSameLocalDate(e.startTime, selectedDate)
+        isEntryOnLocalDate(e, writeDate)
     );
 
     if (existing && !options) {
@@ -1133,6 +1268,7 @@ export default function App() {
       startTime: startIso,
       endTime: endIso,
       durationMinutes: durMins,
+      assignedDate: writeDate,
       source: 'manual',
       createdAt: new Date().toISOString(),
     };
@@ -1148,7 +1284,10 @@ export default function App() {
 
   // Day Boundary (Login / Shady Logout Auto-Check + Active Desk Time Recording)
   const handleDayBoundary = (action: 'start' | 'stop') => {
-    const nowIso = new Date().toISOString();
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const todayYmd = formatLocalYMD(now);
+    const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
 
     const newEntry: TimeEntry = {
       id: `local_boundary_${Date.now()}`,
@@ -1159,6 +1298,7 @@ export default function App() {
       startTime: nowIso,
       endTime: nowIso,
       durationMinutes: 0,
+      assignedDate: writeDate,
       source: 'manual',
       createdAt: nowIso,
     };
@@ -1170,26 +1310,40 @@ export default function App() {
       setIsDeskTimerPaused(false);
       setDeskPausedAt(null);
       setDeskAccumulatedPausedMs(0);
+      if (!activeSession) {
+        setActiveDate(todayYmd);
+        setSelectedDate(todayYmd);
+      }
       setMotivationModalState({
         isOpen: true,
         type: 'login',
         timestamp: nowIso,
       });
     } else {
-      // Stop active timer cleanly if running on logout
+      const additions: TimeEntry[] = [];
+
+      // Synchronously finalize active session cleanly if running on logout
       if (activeSession) {
-        handleStopSession();
+        const completedEntry = buildCompletedEntryFromSession(activeSession, now);
+        additions.push(completedEntry);
+        awardXpForSession(activeSession, completedEntry.durationMinutes || 0);
+        setActiveSession(null);
+        setActiveSeconds(0);
       }
+
       // Persist completed Active Desk Time entry so Desk Attendance stays tracked accurately
       if (isDeskLoggedIn && deskLoginTimestamp) {
-        const loginMs = new Date(deskLoginTimestamp).getTime();
+        const loginDate = new Date(deskLoginTimestamp);
         const effectiveEndMs =
-          isDeskTimerPaused && deskPausedAt ? new Date(deskPausedAt).getTime() : Date.now();
-        const elapsedMs = Number.isFinite(loginMs)
-          ? Math.max(0, effectiveEndMs - loginMs - deskAccumulatedPausedMs)
+          isDeskTimerPaused && deskPausedAt ? new Date(deskPausedAt).getTime() : now.getTime();
+        const elapsedMs = !isNaN(loginDate.getTime())
+          ? Math.max(0, effectiveEndMs - loginDate.getTime() - deskAccumulatedPausedMs)
           : 0;
         const deskMins = Math.max(1, Math.round(elapsedMs / 60000));
-        const deskEntry: TimeEntry = {
+        const deskAssignedDate =
+          !isNaN(loginDate.getTime()) ? formatLocalYMD(loginDate) : writeDate;
+
+        additions.push({
           id: `local_desk_${Date.now()}`,
           userId: 'local_desktop_user',
           type: 'desk',
@@ -1198,17 +1352,19 @@ export default function App() {
           startTime: deskLoginTimestamp,
           endTime: nowIso,
           durationMinutes: deskMins,
+          assignedDate: deskAssignedDate,
           source: 'manual',
           createdAt: nowIso,
-        };
-        setEntries((prev) =>
-          [...prev, deskEntry, newEntry].sort(
-            (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-          )
-        );
-      } else {
-        setEntries((prev) => [...prev, newEntry]);
+        });
       }
+
+      additions.push(newEntry);
+
+      setEntries((prev) =>
+        [...prev, ...additions].sort(
+          (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        )
+      );
 
       setIsDeskLoggedIn(false);
       setIsDeskTimerPaused(false);
@@ -1230,6 +1386,7 @@ export default function App() {
     if (data.action === 'carry_forward' && data.carryForwardApproved) {
       setStudyDeficitCarryForwardMinutes(studyDeficitMinutes);
       setBankedCarryForwardMinutes((prev) => prev + breakSurplusMinutes);
+      setCarriedDates((prev) => (prev.includes(selectedDate) ? prev : [...prev, selectedDate]));
     } else if (data.action === 'send_to_vault' && studyDeficitMinutes > 0) {
       const lostHours = Math.round((studyDeficitMinutes / 60) * 10) / 10;
       const vaultItem: VaultEntry = {
@@ -1244,6 +1401,9 @@ export default function App() {
       setVaultEntries((prev) => [...prev, vaultItem]);
       setStudyDeficitCarryForwardMinutes(0);
     }
+
+    setReconciledDates((prev) => (prev.includes(selectedDate) ? prev : [...prev, selectedDate]));
+    setRolledOverDates((prev) => (prev.includes(selectedDate) ? prev : [...prev, selectedDate]));
 
     setMotivationModalState({
       isOpen: true,
@@ -1285,7 +1445,8 @@ export default function App() {
       const parts = cmd.split(/\s+/);
       const parsedH = parts.length > 1 ? parseFloat(parts[1]) : 8;
       const validH = isNaN(parsedH) || parsedH <= 0 ? 8 : parsedH;
-      const [y, m, d] = selectedDate.split('-').map(Number);
+      const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
+      const [y, m, d] = writeDate.split('-').map(Number);
       const startDate = new Date(y, m - 1, d, 1, 0, 0, 0);
       const durMins = Math.round(validH * 60);
       const endDate = new Date(startDate.getTime() + durMins * 60000);
@@ -1348,163 +1509,6 @@ export default function App() {
 
   const handleDeleteAchievement = (id: string) => {
     setAchievements((prev) => prev.filter((a) => a.id !== id));
-  };
-
-  // Trigger instant 1-hour check-in prompt (for testing or logging the past hour now)
-  const handleTriggerHourlyPromptNow = () => {
-    const now = new Date();
-    const startD = new Date(now.getTime() - 3600 * 1000);
-    const fmt = (d: Date) =>
-      `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-    const slotYmd = formatLocalYMD(startD);
-    const slotHour = startD.getHours();
-    const tracked = getTrackedMinutesForHour(slotYmd, slotHour);
-
-    nextReminderAtRef.current = Date.now() + 3600 * 1000;
-    setSecondsUntilNextReminder(3600);
-
-    setPendingHourPrompt({
-      id: `hour_prompt_${slotYmd}_${slotHour}_${Date.now()}`,
-      date: slotYmd,
-      hour: slotHour,
-      hourLabel: `${fmt(startD)} – ${fmt(now)}`,
-      startTime: startD.toISOString(),
-      endTime: now.toISOString(),
-      uncountedMinutes: Math.max(15, 60 - tracked),
-    });
-  };
-
-  // Scan today's completed blank hours since desk login (or 06:00 if earlier) into Review Queue
-  const handleScanBlankHoursToday = (): number => {
-    const now = new Date();
-    const todayYmd = formatLocalYMD(now);
-    const currentH = now.getHours();
-    let startH = 6;
-    if (deskLoginTimestamp) {
-      const loginD = new Date(deskLoginTimestamp);
-      if (formatLocalYMD(loginD) === todayYmd) {
-        startH = loginD.getHours();
-      }
-    }
-
-    const toAdd: HourlyReviewItem[] = [];
-    for (let h = startH; h < currentH; h++) {
-      const tracked = getTrackedMinutesForHour(todayYmd, h);
-      const id = `hour_${todayYmd}_${h}`;
-      if (tracked < 15 && !hourlyReviewQueue.some((q) => q.id === id)) {
-        const hStart = `${h.toString().padStart(2, '0')}:00`;
-        const hEnd = `${((h + 1) % 24).toString().padStart(2, '0')}:00`;
-        const startIso = new Date(`${todayYmd}T${hStart}:00`).toISOString();
-        const endIso = new Date(new Date(startIso).getTime() + 3600 * 1000).toISOString();
-        toAdd.push({
-          id,
-          date: todayYmd,
-          hour: h,
-          hourLabel: `${hStart} – ${hEnd}`,
-          startTime: startIso,
-          endTime: endIso,
-          uncountedMinutes: Math.max(15, 60 - tracked),
-          source: 'manual_scan',
-          createdAt: new Date().toISOString(),
-        });
-      }
-    }
-
-    if (toAdd.length > 0) {
-      setHourlyReviewQueue((prev) => [...toAdd.reverse(), ...prev]);
-    }
-    return toAdd.length;
-  };
-
-  // Resolve a queued or prompted hour directly into a TimeEntry
-  const handleResolveHourEntry = (options: {
-    startTime: string;
-    durationMinutes: number;
-    type: EntryType;
-    topic: string;
-    habitId?: string;
-    queueItemId?: string;
-  }) => {
-    const startMs = new Date(options.startTime).getTime();
-    const mins = Math.max(5, options.durationMinutes);
-    const endIso = new Date(startMs + mins * 60000).toISOString();
-
-    const newEntry: TimeEntry = {
-      id: `hr_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      userId: 'local_desktop_user',
-      type: options.type,
-      action: 'stop',
-      topic: options.topic,
-      habitId: options.habitId,
-      startTime: options.startTime,
-      endTime: endIso,
-      durationMinutes: mins,
-      source: options.queueItemId ? 'review_queue' : 'hourly_checkin',
-      createdAt: new Date().toISOString(),
-    };
-
-    setEntries((prev) =>
-      [...prev, newEntry].sort(
-        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-      )
-    );
-
-    if (options.type === 'study') {
-      addXp(Math.min(60, Math.round(mins * 0.5)));
-    } else if (options.type === 'sleep') {
-      addXp(25);
-    } else if (options.habitId || options.type === 'music') {
-      addXp(40);
-    }
-
-    if (options.queueItemId) {
-      setHourlyReviewQueue((prev) => prev.filter((q) => q.id !== options.queueItemId));
-    }
-  };
-
-  const handleSendPromptToReviewQueue = (prompt: PendingHourPrompt, note?: string) => {
-    setHourlyReviewQueue((prev) => {
-      if (prev.some((q) => q.id === prompt.id)) return prev;
-      return [
-        {
-          id: prompt.id,
-          date: prompt.date,
-          hour: prompt.hour,
-          hourLabel: prompt.hourLabel,
-          startTime: prompt.startTime,
-          endTime: prompt.endTime,
-          uncountedMinutes: prompt.uncountedMinutes,
-          note,
-          source: 'hourly_prompt',
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ];
-    });
-    setPendingHourPrompt(null);
-  };
-
-  const handleSendHourlyItemToVault = (item: HourlyReviewItem, reason: string) => {
-    const lostHours = Math.round((item.uncountedMinutes / 60) * 10) / 10;
-    const vaultItem: VaultEntry = {
-      id: `local_v_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      userId: 'local_desktop_user',
-      date: item.date,
-      hoursLost: lostHours,
-      type: 'unreconciled_study_debt',
-      note: reason,
-      createdAt: new Date().toISOString(),
-    };
-    setVaultEntries((prev) => [...prev, vaultItem]);
-    setHourlyReviewQueue((prev) => prev.filter((q) => q.id !== item.id));
-  };
-
-  const handleDismissHourlyReviewItem = (id: string) => {
-    setHourlyReviewQueue((prev) => prev.filter((q) => q.id !== id));
-  };
-
-  const handleClearHourlyReviewQueue = () => {
-    setHourlyReviewQueue([]);
   };
 
   const activeDeskTelemetry: ActiveDeskTelemetry = useMemo(
@@ -1614,7 +1618,6 @@ export default function App() {
       <TopBar
         currentTab={currentTab}
         onSelectTab={(tab) => setCurrentTab(tab as typeof currentTab)}
-        reviewCount={hourlyReviewQueue.length}
         vaultCount={vaultEntries.length}
         achievementsCount={achievements.length}
         onOpenResetInfo={() => setIsResetInfoOpen(true)}
@@ -1718,6 +1721,7 @@ export default function App() {
                 onPauseSession={handlePauseSession}
                 onResumeSession={handleResumeSession}
                 onStopSession={handleStopSession}
+                onAddSessionNote={handleAddSessionNote}
                 onDayBoundary={handleDayBoundary}
                 isDeskLoggedIn={isDeskLoggedIn}
                 deskLoginTimestamp={deskLoginTimestamp}
@@ -1863,7 +1867,6 @@ export default function App() {
                 onDeleteEntry={handleDeleteEntry}
                 activeDesk={activeDeskTelemetry}
                 vaultEntries={vaultEntries}
-                hourlyReviewQueue={hourlyReviewQueue}
                 achievementsCount={achievements.length}
                 profile={profile}
               />
@@ -1895,7 +1898,6 @@ export default function App() {
             onDeleteEntry={handleDeleteEntry}
             activeDesk={activeDeskTelemetry}
             vaultEntries={vaultEntries}
-            hourlyReviewQueue={hourlyReviewQueue}
             achievementsCount={achievements.length}
             profile={profile}
           />
@@ -1928,41 +1930,6 @@ export default function App() {
               onUpdateVaultNote={handleUpdateVaultNote}
             />
           </div>
-        )}
-
-        {/* Tab 5: Remade Hourly Review Queue */}
-        {currentTab === 'review' && (
-          <ReviewQueue
-            hourlyItems={hourlyReviewQueue}
-            habits={habits}
-            hourlyReminderEnabled={hourlyReminderPrefs.enabled}
-            autoSendBlankHours={hourlyReminderPrefs.autoQueueBlankHours}
-            secondsUntilNextReminder={secondsUntilNextReminder}
-            onToggleHourlyReminder={() =>
-              setHourlyReminderPrefs((p) => ({ ...p, enabled: !p.enabled }))
-            }
-            onToggleAutoSendBlankHours={() =>
-              setHourlyReminderPrefs((p) => ({
-                ...p,
-                autoQueueBlankHours: !p.autoQueueBlankHours,
-              }))
-            }
-            onTriggerTestPromptNow={handleTriggerHourlyPromptNow}
-            onScanBlankHoursToday={handleScanBlankHoursToday}
-            onResolveItem={({ item, type, topic, habitId, durationMinutes }) =>
-              handleResolveHourEntry({
-                startTime: item.startTime,
-                durationMinutes,
-                type,
-                topic,
-                habitId,
-                queueItemId: item.id,
-              })
-            }
-            onSendToVault={handleSendHourlyItemToVault}
-            onDismissItem={handleDismissHourlyReviewItem}
-            onClearAll={handleClearHourlyReviewQueue}
-          />
         )}
       </main>
 
@@ -2016,23 +1983,6 @@ export default function App() {
         onDoNotShowAgain={handleDoNotShowTutorialAgain}
         onCompleteLesson={handleCompleteTutorialLesson}
         onNavigateTab={(tab) => setCurrentTab(tab)}
-      />
-
-      {/* 1-Hour Check-In Reminder Modal */}
-      <HourlyCheckInModal
-        prompt={pendingHourPrompt}
-        habits={habits}
-        onResolveHour={({ prompt, type, topic, habitId, durationMinutes }) => {
-          handleResolveHourEntry({
-            startTime: prompt.startTime,
-            durationMinutes,
-            type,
-            topic,
-            habitId,
-          });
-          setPendingHourPrompt(null);
-        }}
-        onSendToReviewQueue={handleSendPromptToReviewQueue}
       />
 
       {/* Left-Edge Hover / Mobile Swipe-Left Quick Life Activity Shortcode Drawer */}

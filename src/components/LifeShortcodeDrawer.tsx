@@ -23,7 +23,7 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { playDeskClick, playEarnedChime } from '../lib/audioAlert';
 import { ActiveSession, TimeEntry } from '../types/tracker';
-import { isSameLocalDate } from './DateNavigator';
+import { isEntryOnLocalDate } from '../lib/sessionRollover';
 
 interface LifeShortcodeDrawerProps {
   activeSession: ActiveSession | null;
@@ -100,7 +100,7 @@ export const LifeShortcodeDrawer: React.FC<LifeShortcodeDrawerProps> = ({
 
   const lifeEntriesToday = useMemo(() => {
     return todayEntries.filter(
-      (e) => e.type === 'life' && isSameLocalDate(e.startTime, selectedDate)
+      (e) => e.type === 'life' && isEntryOnLocalDate(e, selectedDate)
     );
   }, [todayEntries, selectedDate]);
 

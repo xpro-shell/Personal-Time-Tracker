@@ -11,8 +11,6 @@ export const STORAGE_KEYS = {
   PROFILE: 'profile',
   TIME_ENTRIES: 'timeEntries',
   VAULT_ENTRIES: 'vaultEntries',
-  HOURLY_REVIEW_QUEUE: 'hourlyReviewQueue',
-  HOURLY_REMINDER_PREFS: 'hourlyReminderPrefs',
   TO_FILL_GAPS: 'toFillGaps',
   CUSTOM_HABITS: 'customHabits',
   ACHIEVEMENTS: 'achievements',

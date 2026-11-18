@@ -1,7 +1,6 @@
 import { formatLocalYMD } from '../components/DateNavigator';
 import {
   CustomHabit,
-  HourlyReviewItem,
   TimeEntry,
   UserProfile,
   VaultEntry,
@@ -14,6 +13,7 @@ import {
   formatMinutesHm,
   getActivityOptions,
 } from './progressAnalytics';
+import { getEntryAssignedDate } from './sessionRollover';
 
 export interface PeriodGrowthMetric {
   currentMinutes: number;
@@ -94,7 +94,6 @@ export interface GrowthAnalyticsSnapshot {
     totalLostHours: number;
     entriesCount: number;
   };
-  reviewQueueCount: number;
   achievementsCount: number;
   activities: ActivitySummaryMetric[];
 }
@@ -166,9 +165,8 @@ function sumMatchingMinutes(
   let count = 0;
   for (const e of entries) {
     if (!entryMatchesActivity(e, filterId, habits)) continue;
-    const d = new Date(e.startTime);
-    if (isNaN(d.getTime())) continue;
-    const ymd = formatLocalYMD(d);
+    const ymd = getEntryAssignedDate(e);
+    if (!ymd) continue;
     if (startYmd && ymd < startYmd) continue;
     if (endYmd && ymd > endYmd) continue;
     const m = getSafeEntryMinutes(e);
@@ -182,7 +180,6 @@ export function buildGrowthAnalyticsSnapshot(params: {
   entries: TimeEntry[];
   habits: CustomHabit[];
   vaultEntries: VaultEntry[];
-  hourlyReviewQueue: HourlyReviewItem[];
   achievementsCount: number;
   profile: UserProfile;
   selectedDate: string;
@@ -192,7 +189,6 @@ export function buildGrowthAnalyticsSnapshot(params: {
     entries,
     habits,
     vaultEntries,
-    hourlyReviewQueue,
     achievementsCount,
     profile,
     selectedDate,
@@ -256,8 +252,8 @@ export function buildGrowthAnalyticsSnapshot(params: {
   for (const e of effectiveEntries) {
     if (e.type === 'day_boundary') continue;
     const d = new Date(e.startTime);
-    if (isNaN(d.getTime())) continue;
-    const ymd = formatLocalYMD(d);
+    const ymd = getEntryAssignedDate(e);
+    if (!ymd || isNaN(d.getTime())) continue;
     const mins = getSafeEntryMinutes(e);
     distinctDays.add(ymd);
     if (!firstEntryDate || ymd < firstEntryDate) firstEntryDate = ymd;
@@ -386,7 +382,6 @@ export function buildGrowthAnalyticsSnapshot(params: {
       totalLostHours: Math.round((thisWeekLostHours + pastLostHours) * 10) / 10,
       entriesCount: vaultEntries.length,
     },
-    reviewQueueCount: hourlyReviewQueue.length,
     achievementsCount,
     activities,
   };
@@ -505,14 +500,13 @@ export function answerGrowthQuestionLocally(
     ].join('\n');
   }
 
-  // Vault / Lost Time / Review Queue
-  if (q.includes('vault') || q.includes('lost') || q.includes('deficit') || q.includes('review')) {
+  // Vault / Lost Time
+  if (q.includes('vault') || q.includes('lost') || q.includes('deficit')) {
     return [
-      `**Vault & Review Queue Status**`,
+      `**Vault Status**`,
       `• This Week Lost Time: **${snap.vault.thisWeekLostHours}h**`,
       `• Past Vault Lost Time: **${snap.vault.pastLostHours}h**`,
       `• All-Time Vault Total: **${snap.vault.totalLostHours}h** (${snap.vault.entriesCount} records)`,
-      `• Pending Hourly Review Queue: **${snap.reviewQueueCount}** uncounted hour(s)`,
     ].join('\n');
   }
 

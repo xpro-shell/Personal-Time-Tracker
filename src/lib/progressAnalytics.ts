@@ -1,5 +1,6 @@
-import { formatLocalYMD, isSameLocalDate } from '../components/DateNavigator';
+import { formatLocalYMD } from '../components/DateNavigator';
 import { CustomHabit, TimeEntry } from '../types/tracker';
+import { getEntryAssignedDate, isEntryOnLocalDate } from './sessionRollover';
 
 export type ActivityFilterId =
   | 'all'
@@ -427,9 +428,8 @@ function sumMinutesForRange(
   let total = 0;
   entries.forEach((e) => {
     if (!entryMatchesActivity(e, activityFilter, habits)) return;
-    const d = new Date(e.startTime);
-    if (isNaN(d.getTime())) return;
-    const ymd = formatLocalYMD(d);
+    const ymd = getEntryAssignedDate(e);
+    if (!ymd) return;
     if (ymd >= startYmd && ymd <= endYmd) {
       total += getEntryDurationMins(e);
     }
@@ -472,6 +472,11 @@ export function buildProgressSeries(options: {
       let totalMins = 0;
 
       filtered.forEach((entry) => {
+        const entryYmd = getEntryAssignedDate(entry);
+        // Strictly respect explicit assignedDate so post-midnight spillover doesn't leak onto next day's bars
+        if (entryYmd && entryYmd !== selectedDate && (entry.assignedDate || entry.type !== 'sleep')) {
+          return;
+        }
         const startMs = new Date(entry.startTime).getTime();
         if (isNaN(startMs)) return;
         const dur = getEntryDurationMins(entry);
@@ -512,7 +517,7 @@ export function buildProgressSeries(options: {
     rawBuckets = Array.from({ length: 7 }).map((_, idx) => {
       const dayDate = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + idx);
       const ymd = formatLocalYMD(dayDate);
-      const dayEntries = filtered.filter((e) => isSameLocalDate(e.startTime, ymd));
+      const dayEntries = filtered.filter((e) => isEntryOnLocalDate(e, ymd));
       const breakdown = createEmptyBreakdown();
       let mins = 0;
 
@@ -561,9 +566,8 @@ export function buildProgressSeries(options: {
       let mins = 0;
 
       filtered.forEach((e) => {
-        const eDate = new Date(e.startTime);
-        if (isNaN(eDate.getTime())) return;
-        const eYmd = formatLocalYMD(eDate);
+        const eYmd = getEntryAssignedDate(e);
+        if (!eYmd) return;
         if (eYmd >= startYmd && eYmd <= endYmd) {
           const d = getEntryDurationMins(e);
           mins += d;
@@ -603,9 +607,10 @@ export function buildProgressSeries(options: {
       let mins = 0;
 
       filtered.forEach((e) => {
-        const eDate = new Date(e.startTime);
-        if (isNaN(eDate.getTime())) return;
-        if (eDate.getFullYear() === yr && eDate.getMonth() === mo) {
+        const eYmd = getEntryAssignedDate(e);
+        if (!eYmd) return;
+        const [eYr, eMo] = eYmd.split('-').map(Number);
+        if (eYr === yr && eMo - 1 === mo) {
           const d = getEntryDurationMins(e);
           mins += d;
           breakdown[classifyBreakdownKey(e)] += d;
@@ -630,9 +635,12 @@ export function buildProgressSeries(options: {
     const currentYear = anchorDate.getFullYear();
     let minEntryYear = currentYear;
     filtered.forEach((e) => {
-      const d = new Date(e.startTime);
-      if (!isNaN(d.getTime()) && d.getFullYear() < minEntryYear) {
-        minEntryYear = d.getFullYear();
+      const eYmd = getEntryAssignedDate(e);
+      if (eYmd) {
+        const eYr = Number(eYmd.slice(0, 4));
+        if (Number.isFinite(eYr) && eYr < minEntryYear) {
+          minEntryYear = eYr;
+        }
       }
     });
     const startYear = Math.min(currentYear - 4, Math.max(currentYear - 6, minEntryYear));
@@ -646,9 +654,10 @@ export function buildProgressSeries(options: {
       let mins = 0;
 
       filtered.forEach((e) => {
-        const eDate = new Date(e.startTime);
-        if (isNaN(eDate.getTime())) return;
-        if (eDate.getFullYear() === yr) {
+        const eYmd = getEntryAssignedDate(e);
+        if (!eYmd) return;
+        const eYr = Number(eYmd.slice(0, 4));
+        if (eYr === yr) {
           const d = getEntryDurationMins(e);
           mins += d;
           breakdown[classifyBreakdownKey(e)] += d;

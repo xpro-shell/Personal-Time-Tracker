@@ -6,7 +6,6 @@ import { PWAInstallButton } from './PWAInstallButton';
 interface TopBarProps {
   currentTab: string;
   onSelectTab: (tab: string) => void;
-  reviewCount?: number;
   vaultCount?: number;
   achievementsCount?: number;
   onOpenResetInfo?: () => void;
@@ -16,7 +15,6 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({
   currentTab,
   onSelectTab,
-  reviewCount = 0,
   vaultCount = 0,
   achievementsCount = 0,
   onOpenResetInfo,
@@ -31,7 +29,6 @@ export const TopBar: React.FC<TopBarProps> = ({
     { id: 'timeline', label: 'Progress & Graphs' },
     { id: 'achievements', label: `Achievements${achievementsCount > 0 ? ` (${achievementsCount})` : ''}` },
     { id: 'vault', label: `Vault of Lost Time${vaultCount > 0 ? ` (${vaultCount})` : ''}` },
-    { id: 'review', label: `Review Queue${reviewCount > 0 ? ` (${reviewCount})` : ''}` },
   ];
 
   const handleSaveName = () => {

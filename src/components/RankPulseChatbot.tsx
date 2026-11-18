@@ -14,13 +14,12 @@ import {
   buildGrowthAnalyticsSnapshot,
 } from '../lib/growthChatbotEngine';
 import { ActiveDeskTelemetry, formatMinutesHm } from '../lib/progressAnalytics';
-import { CustomHabit, HourlyReviewItem, TimeEntry, UserProfile, VaultEntry } from '../types/tracker';
+import { CustomHabit, TimeEntry, UserProfile, VaultEntry } from '../types/tracker';
 
 interface RankPulseChatbotProps {
   entries: TimeEntry[];
   habits: CustomHabit[];
   vaultEntries: VaultEntry[];
-  hourlyReviewQueue: HourlyReviewItem[];
   achievementsCount: number;
   profile: UserProfile;
   selectedDate: string;
@@ -70,7 +69,6 @@ export const RankPulseChatbot: React.FC<RankPulseChatbotProps> = ({
   entries,
   habits,
   vaultEntries,
-  hourlyReviewQueue,
   achievementsCount,
   profile,
   selectedDate,
@@ -90,13 +88,12 @@ export const RankPulseChatbot: React.FC<RankPulseChatbotProps> = ({
         entries,
         habits,
         vaultEntries,
-        hourlyReviewQueue,
         achievementsCount,
         profile,
         selectedDate,
         activeDesk,
       }),
-    [entries, habits, vaultEntries, hourlyReviewQueue, achievementsCount, profile, selectedDate, activeDesk]
+    [entries, habits, vaultEntries, achievementsCount, profile, selectedDate, activeDesk]
   );
 
   // Check whether Gemini API backend is active on first open

@@ -22,13 +22,13 @@ interface RobotTutorialModalProps {
   onSkipForNow: () => void;
   onDoNotShowAgain: () => void;
   onCompleteLesson: () => void;
-  onNavigateTab: (tab: 'desk' | 'timeline' | 'achievements' | 'vault' | 'review') => void;
+  onNavigateTab: (tab: 'desk' | 'timeline' | 'achievements' | 'vault') => void;
 }
 
 interface WalkthroughStep {
   id: string;
   targetElementId: string;
-  targetTab: 'desk' | 'timeline' | 'achievements' | 'vault' | 'review';
+  targetTab: 'desk' | 'timeline' | 'achievements' | 'vault';
   sectionTag: string;
   title: string;
   whatItIsFor: string;

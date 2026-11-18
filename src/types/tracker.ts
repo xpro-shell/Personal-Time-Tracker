@@ -38,6 +38,13 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+export interface SessionNote {
+  id: string;
+  text: string;
+  assignedDate: string; // YYYY-MM-DD (original session/record date)
+  createdAt: string; // ISO string
+}
+
 export interface TimeEntry {
   id: string;
   userId: string;
@@ -48,6 +55,9 @@ export interface TimeEntry {
   startTime: string; // ISO string
   endTime?: string;   // ISO string (optional if active)
   durationMinutes?: number;
+  assignedDate?: string; // Explicit YYYY-MM-DD owner date (survives post-midnight stop)
+  notes?: SessionNote[];
+  note?: string;
   source: EntrySource;
   createdAt: string;
 }
@@ -59,19 +69,6 @@ export interface VaultEntry {
   hoursLost: number;
   type: 'unreconciled_study_debt' | 'unreconciled_break';
   note?: string;
-  createdAt: string;
-}
-
-export interface HourlyReviewItem {
-  id: string; // e.g. hour_2026-11-15_21
-  date: string; // YYYY-MM-DD
-  hour: number; // 0..23
-  hourLabel: string; // e.g. "21:00 – 22:00"
-  startTime: string; // ISO
-  endTime: string; // ISO
-  uncountedMinutes: number;
-  note?: string;
-  source: 'hourly_auto' | 'hourly_prompt' | 'manual_scan';
   createdAt: string;
 }
 
@@ -98,6 +95,8 @@ export interface ActiveSession {
   type: EntryType;
   topic?: string;
   startTime: string;
+  assignedDate?: string; // Original YYYY-MM-DD date when session started
+  notes?: SessionNote[]; // Notes created while session is running
   isPaused?: boolean;
   pausedAt?: string | null;
   accumulatedPausedMs?: number;

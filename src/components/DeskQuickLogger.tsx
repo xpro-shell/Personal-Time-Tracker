@@ -1,6 +1,7 @@
-import { BarChart2, Command, LogIn, LogOut, Pause, Play, RotateCcw, Square, Timer } from 'lucide-react';
-import React from 'react';
+import { BarChart2, Calendar, Command, LogIn, LogOut, Pause, Play, Plus, RotateCcw, Square, StickyNote, Timer } from 'lucide-react';
+import React, { useState } from 'react';
 import { playDeskClick } from '../lib/audioAlert';
+import { formatLocalYMD, getSessionAssignedDate } from '../lib/sessionRollover';
 import { ActiveSession, TimeEntry } from '../types/tracker';
 
 interface DeskQuickLoggerProps {
@@ -9,6 +10,7 @@ interface DeskQuickLoggerProps {
   onPauseSession: () => void;
   onResumeSession: () => void;
   onStopSession: () => void;
+  onAddSessionNote?: (noteText: string) => void;
   onDayBoundary: (action: 'start' | 'stop') => void;
   isDeskLoggedIn: boolean;
   deskLoginTimestamp: string | null;
@@ -26,6 +28,7 @@ export const DeskQuickLogger: React.FC<DeskQuickLoggerProps> = ({
   onPauseSession,
   onResumeSession,
   onStopSession,
+  onAddSessionNote,
   onDayBoundary,
   isDeskLoggedIn,
   deskLoginTimestamp,
@@ -36,6 +39,19 @@ export const DeskQuickLogger: React.FC<DeskQuickLoggerProps> = ({
   lastLoggedEntry,
   onUndoEntry,
 }) => {
+  const [noteInput, setNoteInput] = useState('');
+  const sessionAssignedDate = activeSession ? getSessionAssignedDate(activeSession) : null;
+  const isExtendedPastMidnight =
+    !!sessionAssignedDate && sessionAssignedDate !== formatLocalYMD(new Date());
+
+  const handleSubmitNote = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = noteInput.trim();
+    if (!trimmed || !onAddSessionNote) return;
+    playDeskClick();
+    onAddSessionNote(trimmed);
+    setNoteInput('');
+  };
   const formatTimer = (totalSecs: number) => {
     const h = Math.floor(totalSecs / 3600);
     const m = Math.floor((totalSecs % 3600) / 60);
@@ -231,86 +247,146 @@ export const DeskQuickLogger: React.FC<DeskQuickLoggerProps> = ({
         </div>
       </div>
 
-      {/* Active Activity Session Live Timer with Pause / Resume & Stop */}
+      {/* Active Activity Session Live Timer with Assigned Date, Notes & Pause / Resume / Stop */}
       {activeSession ? (
         <div
-          className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+          className={`p-4 rounded-xl border space-y-3 ${
             activeSession.isPaused
               ? 'bg-gradient-to-r from-amber-950/40 via-[#151412] to-zinc-950 border-amber-400/55'
               : 'bg-gradient-to-r from-emerald-950/60 via-[#111c19] to-teal-950/40 border-emerald-400/55 shadow-[0_0_28px_-8px_rgba(16,185,129,0.4)]'
           }`}
         >
-          <div>
-            <div className="flex items-center gap-2">
-              <span
-                className={`w-2 h-2 rounded-full ${
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    activeSession.isPaused
+                      ? 'bg-amber-400'
+                      : 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]'
+                  }`}
+                />
+                <span
+                  className={`label-scandi ${
+                    activeSession.isPaused ? 'text-amber-300' : 'text-emerald-300'
+                  }`}
+                >
+                  {activeSession.isPaused ? `Paused ${activeSession.type}` : `Active ${activeSession.type}`}
+                </span>
+                <span className="text-zinc-600" aria-hidden="true">·</span>
+                <span className="text-sm font-sans font-semibold text-white">
+                  {activeSession.topic || activeSession.type}
+                </span>
+                {sessionAssignedDate && (
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono border ${
+                      isExtendedPastMidnight
+                        ? 'bg-cyan-500/15 border-cyan-400/45 text-cyan-200'
+                        : 'bg-zinc-900/80 border-zinc-800 text-zinc-400'
+                    }`}
+                    title="All time & notes for this session save to this original session date"
+                  >
+                    <Calendar className="w-3 h-3" />
+                    <span>
+                      {isExtendedPastMidnight
+                        ? `Assigned: ${sessionAssignedDate} · Post-midnight`
+                        : `Session Date: ${sessionAssignedDate}`}
+                    </span>
+                  </span>
+                )}
+              </div>
+              <div
+                className={`mt-1 text-2xl font-mono font-bold tabular-nums ${
                   activeSession.isPaused
-                    ? 'bg-amber-400'
-                    : 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]'
-                }`}
-              />
-              <span
-                className={`label-scandi ${
-                  activeSession.isPaused ? 'text-amber-300' : 'text-emerald-300'
+                    ? 'text-amber-200'
+                    : 'text-emerald-200 drop-shadow-[0_0_10px_rgba(52,211,153,0.25)]'
                 }`}
               >
-                {activeSession.isPaused ? `Paused ${activeSession.type}` : `Active ${activeSession.type}`}
-              </span>
-              <span className="text-zinc-600" aria-hidden="true">·</span>
-              <span className="text-sm font-sans font-semibold text-white">
-                {activeSession.topic || activeSession.type}
-              </span>
+                {formatTimer(activeSessionSeconds)}
+              </div>
             </div>
-            <div
-              className={`mt-1 text-2xl font-mono font-bold tabular-nums ${
-                activeSession.isPaused
-                  ? 'text-amber-200'
-                  : 'text-emerald-200 drop-shadow-[0_0_10px_rgba(52,211,153,0.25)]'
-              }`}
-            >
-              {formatTimer(activeSessionSeconds)}
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  if (activeSession.isPaused) onResumeSession();
+                  else onPauseSession();
+                }}
+                className={`interactive-press flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                  activeSession.isPaused
+                    ? 'bg-emerald-400 text-zinc-950 border-emerald-300 hover:brightness-110'
+                    : 'bg-amber-500/20 text-amber-100 border-amber-400/60 hover:bg-amber-500/30'
+                }`}
+              >
+                {activeSession.isPaused ? (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Resume</span>
+                  </>
+                ) : (
+                  <>
+                    <Pause className="w-3.5 h-3.5" />
+                    <span>Pause</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  onStopSession();
+                }}
+                className="interactive-press flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 rounded-lg hover:brightness-110 transition-all shadow-[0_0_18px_-4px_rgba(220,38,38,0.6)] cursor-pointer"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span>Stop Session</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                playDeskClick();
-                if (activeSession.isPaused) onResumeSession();
-                else onPauseSession();
-              }}
-              className={`interactive-press flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
-                activeSession.isPaused
-                  ? 'bg-emerald-400 text-zinc-950 border-emerald-300 hover:brightness-110'
-                  : 'bg-amber-500/20 text-amber-100 border-amber-400/60 hover:bg-amber-500/30'
-              }`}
-            >
-              {activeSession.isPaused ? (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Resume</span>
-                </>
-              ) : (
-                <>
-                  <Pause className="w-3.5 h-3.5" />
-                  <span>Pause</span>
-                </>
+          {/* Session Notes Anchored to Original Assigned Date */}
+          {onAddSessionNote && (
+            <div className="pt-2.5 border-t border-zinc-800/70 space-y-2">
+              {activeSession.notes && activeSession.notes.length > 0 && (
+                <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                  {activeSession.notes.map((n) => (
+                    <div
+                      key={n.id}
+                      className="flex items-start justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-950/75 border border-zinc-800/80 text-xs"
+                    >
+                      <span className="text-zinc-200 font-sans flex items-start gap-1.5 min-w-0">
+                        <StickyNote className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                        <span className="break-words">{n.text}</span>
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-500 shrink-0">
+                        {n.assignedDate}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                playDeskClick();
-                onStopSession();
-              }}
-              className="interactive-press flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 rounded-lg hover:brightness-110 transition-all shadow-[0_0_18px_-4px_rgba(220,38,38,0.6)] cursor-pointer"
-            >
-              <Square className="w-3.5 h-3.5 fill-current" />
-              <span>Stop Session</span>
-            </button>
-          </div>
+              <form onSubmit={handleSubmitNote} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                  placeholder={`Add session note (saves to ${sessionAssignedDate || 'session date'})...`}
+                  className="flex-1 min-w-0 px-3 py-1.5 text-xs font-sans bg-zinc-950/85 border border-zinc-800 rounded-lg text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-400"
+                />
+                <button
+                  type="submit"
+                  disabled={!noteInput.trim()}
+                  className="interactive-press flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-zinc-900 border border-zinc-700/80 text-emerald-300 hover:border-emerald-400/60 hover:bg-emerald-500/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Note</span>
+                </button>
+              </form>
+            </div>
+          )}
         </div>
       ) : (
         <div className="py-3 px-4 rounded-xl bg-zinc-950/70 border border-zinc-800/80 text-xs text-zinc-400 font-sans flex flex-wrap items-center justify-between gap-2">

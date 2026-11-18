@@ -17,7 +17,7 @@ import {
 import React, { useState } from 'react';
 import { playDeskClick, playEarnedChime } from '../lib/audioAlert';
 import { CustomHabit, TimeEntry } from '../types/tracker';
-import { isSameLocalDate } from './DateNavigator';
+import { isEntryOnLocalDate } from '../lib/sessionRollover';
 
 interface HabitCardProps {
   habit: CustomHabit;
@@ -69,7 +69,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
       (e.habitId === habit.id ||
         e.type === habit.entryType ||
         e.topic?.toLowerCase().includes(habit.shortcode.toLowerCase())) &&
-      isSameLocalDate(e.startTime, selectedDate)
+      isEntryOnLocalDate(e, selectedDate)
   );
 
   const isTicked = !!loggedEntry;
@@ -79,7 +79,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
         (e.habitId === habit.id ||
           e.type === habit.entryType ||
           e.topic?.toLowerCase().includes(habit.shortcode.toLowerCase())) &&
-        isSameLocalDate(e.startTime, selectedDate)
+        isEntryOnLocalDate(e, selectedDate)
     )
     .reduce((sum, e) => sum + (e.durationMinutes || 0), 0);
 
