@@ -41,7 +41,7 @@ The repository allows the `esbuild` install script because Vite needs it to inst
 
 **✨ New**
 - **Pause button:** every timer now has a Pause button.
-- **Growth Chatbot (Beta):** a small circle button in Progress and Graphs. Ask it things like "How much did I grow this week?" or "What's my all-time progress?". It's still in testing, so answers may not be perfect yet.
+- **RankPulse AI(Beta):** a small gaming circle button in Progress and Graphs below. Ask it things like "How much did I grow this week?" or "What's my all-time progress?". It's still in testing, so answers may not be perfect yet.
 - **Active Desk Time tracking:** your desk time is now tracked and shows in Progress and Graphs.
 - **What's New popup:** after you update, you'll see what changed the first time you open the app.
 
