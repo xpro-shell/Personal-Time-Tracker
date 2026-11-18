@@ -64,16 +64,38 @@ export function isEntryOnLocalDate(
   return getEntryAssignedDate(entry) === targetYmd;
 }
 
+export function shiftYmd(ymd: string, deltaDays: number): string {
+  if (!isValidYmd(ymd)) return ymd;
+  const d = parseLocalYmd(ymd);
+  d.setDate(d.getDate() + deltaDays);
+  return formatLocalYMD(d);
+}
+
+export function getDeskOriginDate(
+  isDeskLoggedIn: boolean,
+  deskLoginTimestamp: string | null | undefined
+): string | null {
+  if (!isDeskLoggedIn || !deskLoginTimestamp) return null;
+  const d = new Date(deskLoginTimestamp);
+  if (isNaN(d.getTime())) return null;
+  return formatLocalYMD(d);
+}
+
 /**
- * Whenever an active session is running, notes/logs associated with the current workflow
- * belong to that active session's original assigned date rather than the new post-midnight date.
+ * Whenever an active session is running (or an unclosed previous-day desk session is still open),
+ * notes/logs associated with the current workflow belong to that active day's assigned date
+ * rather than the new post-midnight date.
  */
 export function getEffectiveWriteDate(
   activeSession: ActiveSession | null,
-  selectedDate: string
+  selectedDate: string,
+  openDeskOriginDate?: string | null
 ): string {
   if (activeSession) {
     return getSessionAssignedDate(activeSession);
+  }
+  if (openDeskOriginDate && isValidYmd(selectedDate) && selectedDate > openDeskOriginDate) {
+    return openDeskOriginDate;
   }
   return selectedDate;
 }
@@ -152,6 +174,7 @@ export interface DailyRolloverInput {
   isDeskTimerPaused: boolean;
   deskPausedAt: string | null;
   deskAccumulatedPausedMs: number;
+  forceCloseOpenDesk?: boolean;
   now?: Date;
 }
 
@@ -187,6 +210,7 @@ export function processDailyRollover(input: DailyRolloverInput): DailyRolloverRe
     isDeskTimerPaused,
     deskPausedAt,
     deskAccumulatedPausedMs,
+    forceCloseOpenDesk = false,
   } = input;
 
   // Never interrupt or roll over while an active session is running
@@ -195,6 +219,27 @@ export function processDailyRollover(input: DailyRolloverInput): DailyRolloverRe
       didRollover: false,
       balancesModified: false,
       nextActiveDate: fromDate,
+      nextLastRolloverDate: rolledOverDates[rolledOverDates.length - 1] || '',
+      nextStudyDeficitCarryForwardMinutes: studyDeficitCarryForwardMinutes,
+      nextBankedCarryForwardMinutes: bankedCarryForwardMinutes,
+      nextCarriedDates: carriedDates,
+      nextRolledOverDates: rolledOverDates,
+      nextEntries: entries,
+      nextDeskLoginTimestamp: deskLoginTimestamp,
+      nextDeskPausedAt: deskPausedAt,
+      nextDeskAccumulatedPausedMs: deskAccumulatedPausedMs,
+    };
+  }
+
+  // If the previous day's desk timer is still open across midnight and the user hasn't explicitly
+  // logged out or clicked "Reset to Today", keep the previous desk day active so remaining quota
+  // can still be completed on that day.
+  const openDeskOrigin = getDeskOriginDate(isDeskLoggedIn, deskLoginTimestamp);
+  if (!forceCloseOpenDesk && openDeskOrigin && openDeskOrigin < toDate) {
+    return {
+      didRollover: false,
+      balancesModified: false,
+      nextActiveDate: openDeskOrigin,
       nextLastRolloverDate: rolledOverDates[rolledOverDates.length - 1] || '',
       nextStudyDeficitCarryForwardMinutes: studyDeficitCarryForwardMinutes,
       nextBankedCarryForwardMinutes: bankedCarryForwardMinutes,
@@ -364,3 +409,125 @@ export function processDailyRollover(input: DailyRolloverInput): DailyRolloverRe
     nextDeskAccumulatedPausedMs,
   };
 }
+
+export interface ReassignEntriesInput {
+  entries: TimeEntry[];
+  entryIds: string[];
+  targetDate: string;
+  vaultEntries: VaultEntry[];
+  carriedDates: string[];
+  studyDeficitCarryForwardMinutes: number;
+}
+
+export interface ReassignEntriesResult {
+  nextEntries: TimeEntry[];
+  nextVaultEntries: VaultEntry[];
+  nextCarriedDates: string[];
+  nextStudyDeficitCarryForwardMinutes: number;
+  reassignedCount: number;
+  movedMinutes: number;
+}
+
+/**
+ * Reassigns tracked entries (e.g., post-midnight study/break logs that landed on Today)
+ * back to targetDate (e.g., Yesterday), updating study quota & clearing/reducing redundant
+ * shortfall vault/carry-forward debt for targetDate automatically.
+ */
+export function reassignEntriesToDate(input: ReassignEntriesInput): ReassignEntriesResult {
+  const {
+    entries,
+    entryIds,
+    targetDate,
+    vaultEntries,
+    carriedDates,
+    studyDeficitCarryForwardMinutes,
+  } = input;
+
+  if (!isValidYmd(targetDate) || entryIds.length === 0) {
+    return {
+      nextEntries: entries,
+      nextVaultEntries: vaultEntries,
+      nextCarriedDates: carriedDates,
+      nextStudyDeficitCarryForwardMinutes: studyDeficitCarryForwardMinutes,
+      reassignedCount: 0,
+      movedMinutes: 0,
+    };
+  }
+
+  const idSet = new Set(entryIds);
+
+  const studyMinutesOnTarget = (list: TimeEntry[]) =>
+    list.reduce((sum, e) => {
+      if (!isEntryOnLocalDate(e, targetDate)) return sum;
+      if (e.type === 'study' || e.type === 'content') {
+        return sum + (e.durationMinutes || 0);
+      }
+      return sum;
+    }, 0);
+
+  const prevStudyMins = studyMinutesOnTarget(entries);
+  let reassignedCount = 0;
+  let movedMinutes = 0;
+
+  const nextEntries = entries.map((e) => {
+    if (!idSet.has(e.id) || e.type === 'day_boundary') return e;
+    if (getEntryAssignedDate(e) === targetDate) return e;
+    reassignedCount += 1;
+    movedMinutes += e.durationMinutes || 0;
+    return {
+      ...e,
+      assignedDate: targetDate,
+    };
+  });
+
+  if (reassignedCount === 0) {
+    return {
+      nextEntries: entries,
+      nextVaultEntries: vaultEntries,
+      nextCarriedDates: carriedDates,
+      nextStudyDeficitCarryForwardMinutes: studyDeficitCarryForwardMinutes,
+      reassignedCount: 0,
+      movedMinutes: 0,
+    };
+  }
+
+  const newStudyMins = studyMinutesOnTarget(nextEntries);
+  const prevDeficit = Math.max(0, BASE_STUDY_TARGET_MINUTES - prevStudyMins);
+  const newDeficit = Math.max(0, BASE_STUDY_TARGET_MINUTES - newStudyMins);
+  const recoveredStudyMins = Math.max(0, prevDeficit - newDeficit);
+
+  let nextStudyDeficit = studyDeficitCarryForwardMinutes;
+  let nextCarriedDates = carriedDates;
+  if (recoveredStudyMins > 0 && carriedDates.includes(targetDate)) {
+    nextStudyDeficit = Math.max(0, studyDeficitCarryForwardMinutes - recoveredStudyMins);
+    if (newDeficit === 0) {
+      nextCarriedDates = carriedDates.filter((d) => d !== targetDate);
+    }
+  }
+
+  let nextVaultEntries = vaultEntries;
+  if (recoveredStudyMins > 0) {
+    if (newDeficit === 0) {
+      nextVaultEntries = vaultEntries.filter(
+        (v) => !(v.date === targetDate && v.type === 'unreconciled_study_debt')
+      );
+    } else {
+      const updatedLostHours = Math.round((newDeficit / 60) * 10) / 10;
+      nextVaultEntries = vaultEntries.map((v) =>
+        v.date === targetDate && v.type === 'unreconciled_study_debt'
+          ? { ...v, hoursLost: updatedLostHours }
+          : v
+      );
+    }
+  }
+
+  return {
+    nextEntries,
+    nextVaultEntries,
+    nextCarriedDates,
+    nextStudyDeficitCarryForwardMinutes: nextStudyDeficit,
+    reassignedCount,
+    movedMinutes,
+  };
+}
+

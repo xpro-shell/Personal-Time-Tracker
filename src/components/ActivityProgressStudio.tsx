@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   BarChart3,
   Calendar,
   Check,
@@ -34,6 +35,7 @@ interface ActivityProgressStudioProps {
   template: ProgressTemplateId;
   onChangeTemplate: (template: ProgressTemplateId) => void;
   onDeleteEntry?: (id: string) => void;
+  onReassignEntryToPrevDay?: (id: string) => void;
   activeDesk?: ActiveDeskTelemetry;
   vaultEntries?: VaultEntry[];
   achievementsCount?: number;
@@ -57,6 +59,7 @@ export const ActivityProgressStudio: React.FC<ActivityProgressStudioProps> = ({
   template,
   onChangeTemplate,
   onDeleteEntry,
+  onReassignEntryToPrevDay,
   activeDesk,
   vaultEntries = [],
   achievementsCount = 0,
@@ -554,20 +557,37 @@ export const ActivityProgressStudio: React.FC<ActivityProgressStudioProps> = ({
                       )}
                     </div>
 
-                    {onDeleteEntry && !isVirtualDesk && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          playDeskClick();
-                          onDeleteEntry(entry.id);
-                        }}
-                        className="flex items-center gap-1 px-2 py-1 text-[11px] text-zinc-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer shrink-0"
-                        title="Remove this entry"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Undo</span>
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {onReassignEntryToPrevDay && !isVirtualDesk && entry.type !== 'day_boundary' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            playDeskClick();
+                            onReassignEntryToPrevDay(entry.id);
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 text-[11px] text-cyan-300 hover:text-zinc-950 bg-cyan-500/10 hover:bg-cyan-300 border border-cyan-500/30 rounded-lg transition-colors cursor-pointer"
+                          title="Send this tracked entry back to the previous day's quota"
+                        >
+                          <ArrowLeft className="w-3 h-3" />
+                          <span>Prev Day</span>
+                        </button>
+                      )}
+
+                      {onDeleteEntry && !isVirtualDesk && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            playDeskClick();
+                            onDeleteEntry(entry.id);
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 text-[11px] text-zinc-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                          title="Remove this entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Undo</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}

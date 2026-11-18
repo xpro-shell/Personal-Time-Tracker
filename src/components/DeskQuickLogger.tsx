@@ -17,6 +17,9 @@ interface DeskQuickLoggerProps {
   deskElapsedSeconds: number;
   isDeskTimerPaused: boolean;
   onToggleDeskTimerPause: () => void;
+  openDeskOriginDate?: string | null;
+  currentSystemDate?: string;
+  onResetOpenDeskToToday?: () => void;
   onOpenDeskProgress?: () => void;
   lastLoggedEntry?: TimeEntry | null;
   onUndoEntry?: (entryId: string) => void;
@@ -35,6 +38,9 @@ export const DeskQuickLogger: React.FC<DeskQuickLoggerProps> = ({
   deskElapsedSeconds,
   isDeskTimerPaused,
   onToggleDeskTimerPause,
+  openDeskOriginDate,
+  currentSystemDate,
+  onResetOpenDeskToToday,
   onOpenDeskProgress,
   lastLoggedEntry,
   onUndoEntry,
@@ -246,6 +252,39 @@ export const DeskQuickLogger: React.FC<DeskQuickLoggerProps> = ({
           )}
         </div>
       </div>
+
+      {/* Post-Midnight Open Desk Continuity Banner + Explicit Reset to Today */}
+      {isDeskLoggedIn &&
+        openDeskOriginDate &&
+        currentSystemDate &&
+        openDeskOriginDate < currentSystemDate && (
+          <div className="p-3.5 rounded-xl bg-cyan-950/35 border border-cyan-400/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2 font-mono font-semibold text-cyan-200">
+                <Calendar className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span>
+                  Desk Timer still open from {openDeskOriginDate} (Post-Midnight Mode)
+                </span>
+              </div>
+              <p className="text-zinc-300 font-sans">
+                Quotas &amp; entries stay on <strong className="text-white">{openDeskOriginDate}</strong> so you can finish remaining minutes. Ready for the new day?
+              </p>
+            </div>
+            {onResetOpenDeskToToday && (
+              <button
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  onResetOpenDeskToToday();
+                }}
+                className="interactive-press px-3 py-1.5 text-xs font-bold text-zinc-950 bg-cyan-300 hover:bg-cyan-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                title={`Close ${openDeskOriginDate} desk day cleanly and activate Today (${currentSystemDate})`}
+              >
+                Reset to Today ({currentSystemDate})
+              </button>
+            )}
+          </div>
+        )}
 
       {/* Active Activity Session Live Timer with Assigned Date, Notes & Pause / Resume / Stop */}
       {activeSession ? (

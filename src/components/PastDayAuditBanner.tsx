@@ -1,4 +1,4 @@
-import { AlertTriangle, Archive, ArrowRight, CheckCircle2, History, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Archive, ArrowLeft, ArrowRight, Calendar } from 'lucide-react';
 import React, { useState } from 'react';
 import { playDeskClick, playEarnedChime } from '../lib/audioAlert';
 
@@ -10,11 +10,21 @@ export interface UnreconciledPastDay {
   deficitMinutes: number;
 }
 
+export interface SubsequentDayTrackedInfo {
+  count: number;
+  studyMinutes: number;
+  totalMinutes: number;
+  sourceDate: string;
+}
+
 interface PastDayAuditBannerProps {
   unreconciledDays: UnreconciledPastDay[];
   onVaultPastDay: (day: UnreconciledPastDay, reason?: string) => void;
   onCarryForwardPastDay: (day: UnreconciledPastDay, reason: string) => void;
   onVaultAllPastDays: () => void;
+  subsequentTrackedMap?: Record<string, SubsequentDayTrackedInfo>;
+  onReassignSubsequentToPastDay?: (day: UnreconciledPastDay) => void;
+  onOpenPastDay?: (day: UnreconciledPastDay) => void;
 }
 
 export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
@@ -22,6 +32,9 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
   onVaultPastDay,
   onCarryForwardPastDay,
   onVaultAllPastDays,
+  subsequentTrackedMap = {},
+  onReassignSubsequentToPastDay,
+  onOpenPastDay,
 }) => {
   const [activeDayForCarry, setActiveDayForCarry] = useState<UnreconciledPastDay | null>(null);
   const [carryReason, setCarryReason] = useState('');
@@ -80,6 +93,8 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
         {unreconciledDays.map((day) => {
           const loggedH = Math.round((day.loggedStudyMinutes / 60) * 10) / 10;
           const deficitH = Math.round((day.deficitMinutes / 60) * 10) / 10;
+          const subsequentInfo = subsequentTrackedMap[day.date];
+          const hasSubsequentTime = !!subsequentInfo && subsequentInfo.totalMinutes > 0;
 
           return (
             <div
@@ -93,12 +108,44 @@ export const PastDayAuditBanner: React.FC<PastDayAuditBannerProps> = ({
                   <span className="text-zinc-400">{loggedH}h / 6.0h logged</span>
                 </div>
                 <div className="text-emerald-400 mt-0.5">
-                  Unstudied Shortfall: <span className="font-bold">-{deficitH} hours</span>
+                  Unstudied Shortfall: <span className="font-bold">-{deficitH} hours</span> ({day.deficitMinutes}m left)
                 </div>
               </div>
 
               {/* Action Buttons for this day */}
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {hasSubsequentTime && onReassignSubsequentToPastDay && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playEarnedChime();
+                      onReassignSubsequentToPastDay(day);
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-zinc-950 bg-cyan-300 hover:bg-cyan-200 rounded transition-colors cursor-pointer"
+                    title={`Move ${subsequentInfo.count} tracked log(s) (+${subsequentInfo.totalMinutes}m) from ${subsequentInfo.sourceDate} back to ${day.date}`}
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>
+                      Send {subsequentInfo.sourceDate} Time (+{subsequentInfo.totalMinutes}m) Back
+                    </span>
+                  </button>
+                )}
+
+                {onOpenPastDay && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playDeskClick();
+                      onOpenPastDay(day);
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs text-emerald-300 hover:text-white bg-emerald-500/10 border border-emerald-500/35 rounded hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                    title={`Open ${day.date} dashboard to finish logging its remaining quota`}
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Open Day</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     playDeskClick();

@@ -13,7 +13,7 @@ import { IntroAnimation } from './components/IntroAnimation';
 import { LifeShortcodeDrawer } from './components/LifeShortcodeDrawer';
 import { MotivationModal } from './components/MotivationModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
-import { PastDayAuditBanner, UnreconciledPastDay } from './components/PastDayAuditBanner';
+import { PastDayAuditBanner, SubsequentDayTrackedInfo, UnreconciledPastDay } from './components/PastDayAuditBanner';
 import { ResetInfoModal } from './components/ResetInfoModal';
 import { RobotTutorialModal } from './components/RobotTutorialModal';
 import { SleepTrackerCard } from './components/SleepTrackerCard';
@@ -38,12 +38,16 @@ import {
   BASE_STUDY_TARGET_MINUTES,
   buildCompletedEntryFromSession,
   formatLocalYMD,
+  getDeskOriginDate,
   getEffectiveWriteDate,
+  getEntryAssignedDate,
   getSessionAssignedDate,
   getSessionElapsedMs,
   isEntryOnLocalDate,
   normalizeActiveSession,
   processDailyRollover,
+  reassignEntriesToDate,
+  shiftYmd,
 } from './lib/sessionRollover';
 import {
   AchievementItem,
@@ -123,19 +127,34 @@ export default function App() {
     () => normalizeActiveSession(initialAppState.activeSession),
     [initialAppState]
   );
-  const initialActiveDate = useMemo(() => {
+  const initialBootAnchorDate = useMemo(() => {
     if (initialNormalizedSession) {
       return getSessionAssignedDate(initialNormalizedSession);
     }
-    return initialAppState.activeDate || formatLocalYMD(new Date());
+    const todayBoot = formatLocalYMD(new Date());
+    const deskOrigin = getDeskOriginDate(
+      typeof initialAppState.isDeskLoggedIn === 'boolean' ? initialAppState.isDeskLoggedIn : true,
+      initialAppState.deskLoginTimestamp
+    );
+    const hasOpenPastDesk =
+      !!deskOrigin &&
+      deskOrigin < todayBoot &&
+      !(initialAppState.rolledOverDates || []).includes(deskOrigin) &&
+      !(initialAppState.reconciledDates || []).includes(deskOrigin);
+    if (hasOpenPastDesk) {
+      return deskOrigin;
+    }
+    return null;
   }, [initialNormalizedSession, initialAppState]);
 
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(
     initialNormalizedSession
   );
-  const [activeDate, setActiveDate] = useState<string>(initialActiveDate);
-  const [selectedDate, setSelectedDate] = useState<string>(() =>
-    initialNormalizedSession ? getSessionAssignedDate(initialNormalizedSession) : formatLocalYMD(new Date())
+  const [activeDate, setActiveDate] = useState<string>(
+    initialBootAnchorDate || initialAppState.activeDate || formatLocalYMD(new Date())
+  );
+  const [selectedDate, setSelectedDate] = useState<string>(
+    () => initialBootAnchorDate || formatLocalYMD(new Date())
   );
   const [currentSystemDate, setCurrentSystemDate] = useState<string>(() =>
     formatLocalYMD(new Date())
@@ -442,46 +461,18 @@ export default function App() {
                 setReconciledDates(loadedReconciledDates);
                 setLastRolloverDate(loadedLastRolloverDate);
               } else {
-                const candidateActiveDate = loadedAppState.activeDate || todayYmd;
-                if (candidateActiveDate < todayYmd) {
-                  // Browser reopened on a new day with NO active session -> process rollover once cleanly
-                  const effectiveEntries =
-                    loadedEntries.length > 0 || forceImportSync ? loadedEntries : entries;
-                  const effectiveVault =
-                    loadedVault.length > 0 || forceImportSync ? loadedVault : vaultEntries;
+                const loadedOpenDeskOrigin = getDeskOriginDate(
+                  loadedIsDeskLoggedIn,
+                  loadedDeskLoginTimestamp
+                );
+                const hasOpenPastDesk =
+                  !!loadedOpenDeskOrigin &&
+                  loadedOpenDeskOrigin < todayYmd &&
+                  !loadedRolledOverDates.includes(loadedOpenDeskOrigin) &&
+                  !loadedReconciledDates.includes(loadedOpenDeskOrigin);
 
-                  const rollover = processDailyRollover({
-                    fromDate: candidateActiveDate,
-                    toDate: todayYmd,
-                    entries: effectiveEntries,
-                    vaultEntries: effectiveVault,
-                    carriedDates: loadedCarriedDates,
-                    rolledOverDates: loadedRolledOverDates,
-                    reconciledDates: loadedReconciledDates,
-                    studyDeficitCarryForwardMinutes: loadedStudyDeficit,
-                    bankedCarryForwardMinutes: loadedBankedCarry,
-                    activeSession: null,
-                    isDeskLoggedIn: loadedIsDeskLoggedIn,
-                    deskLoginTimestamp: loadedDeskLoginTimestamp,
-                    isDeskTimerPaused: loadedIsDeskTimerPaused,
-                    deskPausedAt: loadedDeskPausedAt,
-                    deskAccumulatedPausedMs: loadedDeskAccumulatedPausedMs,
-                  });
-
-                  setEntries(rollover.nextEntries);
-                  setDeskLoginTimestamp(rollover.nextDeskLoginTimestamp);
-                  setIsDeskTimerPaused(loadedIsDeskTimerPaused);
-                  setDeskPausedAt(rollover.nextDeskPausedAt);
-                  setDeskAccumulatedPausedMs(rollover.nextDeskAccumulatedPausedMs);
-                  setStudyDeficitCarryForwardMinutes(rollover.nextStudyDeficitCarryForwardMinutes);
-                  setBankedCarryForwardMinutes(rollover.nextBankedCarryForwardMinutes);
-                  setCarriedDates(rollover.nextCarriedDates);
-                  setRolledOverDates(rollover.nextRolledOverDates);
-                  setReconciledDates(loadedReconciledDates);
-                  setLastRolloverDate(rollover.nextLastRolloverDate);
-                  setActiveDate(rollover.nextActiveDate);
-                  setSelectedDate(rollover.nextActiveDate);
-                } else {
+                if (hasOpenPastDesk && loadedOpenDeskOrigin) {
+                  // Previous day's desk timer is still open across midnight: keep it anchored to desk origin date
                   setDeskLoginTimestamp(loadedDeskLoginTimestamp);
                   setIsDeskTimerPaused(loadedIsDeskTimerPaused);
                   setDeskPausedAt(loadedDeskPausedAt);
@@ -492,7 +483,61 @@ export default function App() {
                   setRolledOverDates(loadedRolledOverDates);
                   setReconciledDates(loadedReconciledDates);
                   setLastRolloverDate(loadedLastRolloverDate);
-                  setActiveDate(candidateActiveDate);
+                  setActiveDate(loadedOpenDeskOrigin);
+                  setSelectedDate(loadedOpenDeskOrigin);
+                } else {
+                  const candidateActiveDate = loadedAppState.activeDate || todayYmd;
+                  if (candidateActiveDate < todayYmd) {
+                    // Browser reopened on a new day with NO active session -> process rollover once cleanly
+                    const effectiveEntries =
+                      loadedEntries.length > 0 || forceImportSync ? loadedEntries : entries;
+                    const effectiveVault =
+                      loadedVault.length > 0 || forceImportSync ? loadedVault : vaultEntries;
+
+                    const rollover = processDailyRollover({
+                      fromDate: candidateActiveDate,
+                      toDate: todayYmd,
+                      entries: effectiveEntries,
+                      vaultEntries: effectiveVault,
+                      carriedDates: loadedCarriedDates,
+                      rolledOverDates: loadedRolledOverDates,
+                      reconciledDates: loadedReconciledDates,
+                      studyDeficitCarryForwardMinutes: loadedStudyDeficit,
+                      bankedCarryForwardMinutes: loadedBankedCarry,
+                      activeSession: null,
+                      isDeskLoggedIn: loadedIsDeskLoggedIn,
+                      deskLoginTimestamp: loadedDeskLoginTimestamp,
+                      isDeskTimerPaused: loadedIsDeskTimerPaused,
+                      deskPausedAt: loadedDeskPausedAt,
+                      deskAccumulatedPausedMs: loadedDeskAccumulatedPausedMs,
+                    });
+
+                    setEntries(rollover.nextEntries);
+                    setDeskLoginTimestamp(rollover.nextDeskLoginTimestamp);
+                    setIsDeskTimerPaused(loadedIsDeskTimerPaused);
+                    setDeskPausedAt(rollover.nextDeskPausedAt);
+                    setDeskAccumulatedPausedMs(rollover.nextDeskAccumulatedPausedMs);
+                    setStudyDeficitCarryForwardMinutes(rollover.nextStudyDeficitCarryForwardMinutes);
+                    setBankedCarryForwardMinutes(rollover.nextBankedCarryForwardMinutes);
+                    setCarriedDates(rollover.nextCarriedDates);
+                    setRolledOverDates(rollover.nextRolledOverDates);
+                    setReconciledDates(loadedReconciledDates);
+                    setLastRolloverDate(rollover.nextLastRolloverDate);
+                    setActiveDate(rollover.nextActiveDate);
+                    setSelectedDate(rollover.nextActiveDate);
+                  } else {
+                    setDeskLoginTimestamp(loadedDeskLoginTimestamp);
+                    setIsDeskTimerPaused(loadedIsDeskTimerPaused);
+                    setDeskPausedAt(loadedDeskPausedAt);
+                    setDeskAccumulatedPausedMs(loadedDeskAccumulatedPausedMs);
+                    setStudyDeficitCarryForwardMinutes(loadedStudyDeficit);
+                    setBankedCarryForwardMinutes(loadedBankedCarry);
+                    setCarriedDates(loadedCarriedDates);
+                    setRolledOverDates(loadedRolledOverDates);
+                    setReconciledDates(loadedReconciledDates);
+                    setLastRolloverDate(loadedLastRolloverDate);
+                    setActiveDate(candidateActiveDate);
+                  }
                 }
               }
             }
@@ -689,12 +734,32 @@ export default function App() {
     };
   }, []);
 
+  // Detect if previous calendar day's Desk Timer is still open across midnight
+  const openDeskOriginDate = useMemo(() => {
+    const origin = getDeskOriginDate(isDeskLoggedIn, deskLoginTimestamp);
+    if (
+      origin &&
+      origin < currentSystemDate &&
+      !rolledOverDates.includes(origin) &&
+      !reconciledDates.includes(origin)
+    ) {
+      return origin;
+    }
+    return null;
+  }, [isDeskLoggedIn, deskLoginTimestamp, currentSystemDate, rolledOverDates, reconciledDates]);
+
   // Session-aware Daily Rollover:
-  // Only rolls over past activeDate -> currentSystemDate when NO active session is running.
-  // If a study, break, sleep, or other session is active across midnight, rollover waits until stop.
+  // Only rolls over past activeDate -> currentSystemDate when NO active session AND NO unclosed
+  // previous-day Desk Timer is running.
   useEffect(() => {
     if (!isHydrated) return;
     if (activeSession) return;
+    if (openDeskOriginDate) {
+      if (activeDate !== openDeskOriginDate) {
+        setActiveDate(openDeskOriginDate);
+      }
+      return;
+    }
     if (!activeDate || activeDate >= currentSystemDate) return;
 
     const rollover = processDailyRollover({
@@ -832,6 +897,49 @@ export default function App() {
     return results;
   }, [entries, vaultEntries, carriedDates]);
 
+  // Map each unreconciled past weekday to post-midnight/subsequent tracked activity that can be sent back
+  const subsequentTrackedMap = useMemo<Record<string, SubsequentDayTrackedInfo>>(() => {
+    const map: Record<string, SubsequentDayTrackedInfo> = {};
+    for (const day of unreconciledDays) {
+      const candidates = entries.filter((e) => {
+        if (e.type === 'day_boundary' || e.type === 'desk') return false;
+        const d = getEntryAssignedDate(e);
+        return !!d && d > day.date && d <= currentSystemDate;
+      });
+      if (candidates.length === 0) continue;
+
+      const hasCurrentSystem = candidates.some(
+        (e) => getEntryAssignedDate(e) === currentSystemDate
+      );
+      const sourceDate = hasCurrentSystem
+        ? currentSystemDate
+        : candidates
+            .map((e) => getEntryAssignedDate(e))
+            .sort()[0];
+
+      const scoped = candidates.filter((e) => getEntryAssignedDate(e) === sourceDate);
+      let studyMinutes = 0;
+      let totalMinutes = 0;
+      for (const e of scoped) {
+        const mins = e.durationMinutes || 0;
+        totalMinutes += mins;
+        if (e.type === 'study' || e.type === 'content') {
+          studyMinutes += mins;
+        }
+      }
+
+      if (scoped.length > 0 && totalMinutes > 0) {
+        map[day.date] = {
+          count: scoped.length,
+          studyMinutes,
+          totalMinutes,
+          sourceDate,
+        };
+      }
+    }
+    return map;
+  }, [entries, unreconciledDays, currentSystemDate]);
+
   // Daily completion status fed to DayLogout Auto-Audit modal
   const dailyCompletionStatus = useMemo<DailyCompletionStatus>(() => {
     const habitsStatus = habits.map((h) => {
@@ -930,6 +1038,8 @@ export default function App() {
       );
       awardXpForSession(activeSession, completedEntry.durationMinutes || 0);
       workingActiveDate = getSessionAssignedDate(activeSession);
+    } else if (openDeskOriginDate && workingActiveDate > openDeskOriginDate) {
+      workingActiveDate = openDeskOriginDate;
     }
 
     if (workingActiveDate < todayYmd) {
@@ -953,25 +1063,28 @@ export default function App() {
       });
 
       workingEntries = rollover.nextEntries;
-      workingStudyDeficit = rollover.nextStudyDeficitCarryForwardMinutes;
-      workingBankedCarry = rollover.nextBankedCarryForwardMinutes;
-      workingCarriedDates = rollover.nextCarriedDates;
-      workingRolledOverDates = rollover.nextRolledOverDates;
-      workingDeskLoginTs = rollover.nextDeskLoginTimestamp;
-      workingDeskPausedAt = rollover.nextDeskPausedAt;
-      workingDeskPausedMs = rollover.nextDeskAccumulatedPausedMs;
       workingActiveDate = rollover.nextActiveDate;
 
-      setStudyDeficitCarryForwardMinutes(workingStudyDeficit);
-      setBankedCarryForwardMinutes(workingBankedCarry);
-      setCarriedDates(workingCarriedDates);
-      setRolledOverDates(workingRolledOverDates);
-      setLastRolloverDate(rollover.nextLastRolloverDate);
-      setDeskLoginTimestamp(workingDeskLoginTs);
-      setDeskPausedAt(workingDeskPausedAt);
-      setDeskAccumulatedPausedMs(workingDeskPausedMs);
-      setActiveDate(workingActiveDate);
-      setSelectedDate(workingActiveDate);
+      if (rollover.didRollover) {
+        workingStudyDeficit = rollover.nextStudyDeficitCarryForwardMinutes;
+        workingBankedCarry = rollover.nextBankedCarryForwardMinutes;
+        workingCarriedDates = rollover.nextCarriedDates;
+        workingRolledOverDates = rollover.nextRolledOverDates;
+        workingDeskLoginTs = rollover.nextDeskLoginTimestamp;
+        workingDeskPausedAt = rollover.nextDeskPausedAt;
+        workingDeskPausedMs = rollover.nextDeskAccumulatedPausedMs;
+
+        setStudyDeficitCarryForwardMinutes(workingStudyDeficit);
+        setBankedCarryForwardMinutes(workingBankedCarry);
+        setCarriedDates(workingCarriedDates);
+        setRolledOverDates(workingRolledOverDates);
+        setLastRolloverDate(rollover.nextLastRolloverDate);
+        setDeskLoginTimestamp(workingDeskLoginTs);
+        setDeskPausedAt(workingDeskPausedAt);
+        setDeskAccumulatedPausedMs(workingDeskPausedMs);
+        setActiveDate(workingActiveDate);
+        setSelectedDate(workingActiveDate);
+      }
     }
 
     if (workingEntries !== entries) {
@@ -979,6 +1092,8 @@ export default function App() {
     }
 
     const sessionAssignedDate = workingActiveDate || todayYmd;
+    setActiveDate(sessionAssignedDate);
+    setSelectedDate(sessionAssignedDate);
     setActiveSession({
       type,
       topic: topic || (type === 'study' ? 'General Study' : type === 'life' ? 'Life Activity' : 'Break'),
@@ -1040,7 +1155,7 @@ export default function App() {
   const handleLogLifeActivity = (options: { topic: string; durationMinutes: number }) => {
     const mins = Math.max(1, options.durationMinutes);
     const now = new Date();
-    const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
+    const writeDate = getEffectiveWriteDate(activeSession, selectedDate, openDeskOriginDate);
     const isCurrentCalendarWrite = writeDate === formatLocalYMD(now);
 
     const endD = isCurrentCalendarWrite || activeSession ? now : new Date(`${writeDate}T20:00:00`);
@@ -1065,6 +1180,132 @@ export default function App() {
         (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
       )
     );
+  };
+
+  // Explicit Reset to Today for users keeping Yesterday's Desk Timer open past midnight
+  const handleResetOpenDeskToToday = () => {
+    const now = new Date();
+    const todayYmd = formatLocalYMD(now);
+    const fromDate = openDeskOriginDate || activeDate;
+
+    let workingEntries = entries;
+    if (activeSession) {
+      const completedEntry = buildCompletedEntryFromSession(activeSession, now);
+      workingEntries = [...entries, completedEntry].sort(
+        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      );
+      awardXpForSession(activeSession, completedEntry.durationMinutes || 0);
+      setActiveSession(null);
+      setActiveSeconds(0);
+    }
+
+    if (fromDate < todayYmd) {
+      const rollover = processDailyRollover({
+        fromDate,
+        toDate: todayYmd,
+        entries: workingEntries,
+        vaultEntries,
+        carriedDates,
+        rolledOverDates,
+        reconciledDates,
+        studyDeficitCarryForwardMinutes,
+        bankedCarryForwardMinutes,
+        activeSession: null,
+        isDeskLoggedIn,
+        deskLoginTimestamp,
+        isDeskTimerPaused,
+        deskPausedAt,
+        deskAccumulatedPausedMs,
+        forceCloseOpenDesk: true,
+        now,
+      });
+
+      setEntries(rollover.nextEntries);
+      setDeskLoginTimestamp(rollover.nextDeskLoginTimestamp);
+      setDeskPausedAt(rollover.nextDeskPausedAt);
+      setDeskAccumulatedPausedMs(rollover.nextDeskAccumulatedPausedMs);
+      setStudyDeficitCarryForwardMinutes(rollover.nextStudyDeficitCarryForwardMinutes);
+      setBankedCarryForwardMinutes(rollover.nextBankedCarryForwardMinutes);
+      setCarriedDates(rollover.nextCarriedDates);
+      setRolledOverDates(rollover.nextRolledOverDates);
+      setLastRolloverDate(rollover.nextLastRolloverDate);
+      setActiveDate(todayYmd);
+      setSelectedDate(todayYmd);
+      playEarnedChime();
+    } else {
+      setEntries(workingEntries);
+      setActiveDate(todayYmd);
+      setSelectedDate(todayYmd);
+    }
+  };
+
+  // Reassign all subsequent/post-midnight activity entries back to an unreconciled past weekday
+  const handleReassignSubsequentToPastDay = (day: UnreconciledPastDay) => {
+    const info = subsequentTrackedMap[day.date];
+    if (!info) return;
+
+    const entryIds = entries
+      .filter(
+        (e) =>
+          e.type !== 'day_boundary' &&
+          e.type !== 'desk' &&
+          getEntryAssignedDate(e) === info.sourceDate
+      )
+      .map((e) => e.id);
+
+    if (entryIds.length === 0) return;
+
+    const result = reassignEntriesToDate({
+      entries,
+      entryIds,
+      targetDate: day.date,
+      vaultEntries,
+      carriedDates,
+      studyDeficitCarryForwardMinutes,
+    });
+
+    if (result.reassignedCount > 0) {
+      setEntries(result.nextEntries);
+      setVaultEntries(result.nextVaultEntries);
+      setCarriedDates(result.nextCarriedDates);
+      setStudyDeficitCarryForwardMinutes(result.nextStudyDeficitCarryForwardMinutes);
+      setSelectedDate(day.date);
+    }
+  };
+
+  // Switch DateNavigator to an unreconciled past day & jump straight to Focus card
+  const handleOpenPastDay = (day: UnreconciledPastDay) => {
+    setSelectedDate(day.date);
+    window.setTimeout(() => {
+      document.getElementById('section-focus')?.scrollIntoView({ behavior: 'smooth' });
+    }, 60);
+  };
+
+  // Reassign a single logged entry back 1 calendar day (e.g., 12:15 AM today -> yesterday)
+  const handleReassignEntryToPrevDay = (entryId: string) => {
+    const targetEntry = entries.find((e) => e.id === entryId);
+    if (!targetEntry || targetEntry.type === 'day_boundary') return;
+
+    const currentAssigned = getEntryAssignedDate(targetEntry);
+    if (!currentAssigned) return;
+    const prevDate = shiftYmd(currentAssigned, -1);
+
+    const result = reassignEntriesToDate({
+      entries,
+      entryIds: [entryId],
+      targetDate: prevDate,
+      vaultEntries,
+      carriedDates,
+      studyDeficitCarryForwardMinutes,
+    });
+
+    if (result.reassignedCount > 0) {
+      setEntries(result.nextEntries);
+      setVaultEntries(result.nextVaultEntries);
+      setCarriedDates(result.nextCarriedDates);
+      setStudyDeficitCarryForwardMinutes(result.nextStudyDeficitCarryForwardMinutes);
+      playEarnedChime();
+    }
   };
 
   // Stop Session: saves complete duration & notes against original assignedDate, then processes daily rollover if past midnight
@@ -1111,16 +1352,18 @@ export default function App() {
       });
 
       setEntries(rollover.nextEntries);
-      setDeskLoginTimestamp(rollover.nextDeskLoginTimestamp);
-      setDeskPausedAt(rollover.nextDeskPausedAt);
-      setDeskAccumulatedPausedMs(rollover.nextDeskAccumulatedPausedMs);
-      setStudyDeficitCarryForwardMinutes(rollover.nextStudyDeficitCarryForwardMinutes);
-      setBankedCarryForwardMinutes(rollover.nextBankedCarryForwardMinutes);
-      setCarriedDates(rollover.nextCarriedDates);
-      setRolledOverDates(rollover.nextRolledOverDates);
-      setLastRolloverDate(rollover.nextLastRolloverDate);
-      setActiveDate(rollover.nextActiveDate);
-      setSelectedDate(rollover.nextActiveDate);
+      if (rollover.didRollover) {
+        setDeskLoginTimestamp(rollover.nextDeskLoginTimestamp);
+        setDeskPausedAt(rollover.nextDeskPausedAt);
+        setDeskAccumulatedPausedMs(rollover.nextDeskAccumulatedPausedMs);
+        setStudyDeficitCarryForwardMinutes(rollover.nextStudyDeficitCarryForwardMinutes);
+        setBankedCarryForwardMinutes(rollover.nextBankedCarryForwardMinutes);
+        setCarriedDates(rollover.nextCarriedDates);
+        setRolledOverDates(rollover.nextRolledOverDates);
+        setLastRolloverDate(rollover.nextLastRolloverDate);
+        setActiveDate(rollover.nextActiveDate);
+        setSelectedDate(rollover.nextActiveDate);
+      }
     } else {
       setEntries(updatedEntries);
     }
@@ -1150,7 +1393,7 @@ export default function App() {
     durationMinutes: number;
     replaceExisting?: boolean;
   }) => {
-    const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
+    const writeDate = getEffectiveWriteDate(activeSession, selectedDate, openDeskOriginDate);
     const replaceId = options.replaceExisting && todaySleepEntry ? todaySleepEntry.id : null;
     if (replaceId) {
       addXp(-30);
@@ -1185,7 +1428,7 @@ export default function App() {
     endTimeIso?: string;
     durationMinutes?: number;
   }) => {
-    const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
+    const writeDate = getEffectiveWriteDate(activeSession, selectedDate, openDeskOriginDate);
     if (todayRiyazEntry && !options) {
       handleDeleteEntry(todayRiyazEntry.id);
       return;
@@ -1237,7 +1480,7 @@ export default function App() {
       durationMinutes?: number;
     }
   ) => {
-    const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
+    const writeDate = getEffectiveWriteDate(activeSession, selectedDate, openDeskOriginDate);
     const existing = entries.find(
       (e) =>
         (e.habitId === habit.id ||
@@ -1287,7 +1530,7 @@ export default function App() {
     const now = new Date();
     const nowIso = now.toISOString();
     const todayYmd = formatLocalYMD(now);
-    const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
+    const writeDate = getEffectiveWriteDate(activeSession, selectedDate, openDeskOriginDate);
 
     const newEntry: TimeEntry = {
       id: `local_boundary_${Date.now()}`,
@@ -1404,6 +1647,10 @@ export default function App() {
 
     setReconciledDates((prev) => (prev.includes(selectedDate) ? prev : [...prev, selectedDate]));
     setRolledOverDates((prev) => (prev.includes(selectedDate) ? prev : [...prev, selectedDate]));
+    if (selectedDate < currentSystemDate && !activeSession) {
+      setActiveDate(currentSystemDate);
+      setSelectedDate(currentSystemDate);
+    }
 
     setMotivationModalState({
       isOpen: true,
@@ -1445,7 +1692,7 @@ export default function App() {
       const parts = cmd.split(/\s+/);
       const parsedH = parts.length > 1 ? parseFloat(parts[1]) : 8;
       const validH = isNaN(parsedH) || parsedH <= 0 ? 8 : parsedH;
-      const writeDate = getEffectiveWriteDate(activeSession, selectedDate);
+      const writeDate = getEffectiveWriteDate(activeSession, selectedDate, openDeskOriginDate);
       const [y, m, d] = writeDate.split('-').map(Number);
       const startDate = new Date(y, m - 1, d, 1, 0, 0, 0);
       const durMins = Math.round(validH * 60);
@@ -1650,6 +1897,9 @@ export default function App() {
             onVaultPastDay={handleVaultPastDay}
             onCarryForwardPastDay={handleCarryForwardPastDay}
             onVaultAllPastDays={handleVaultAllPastDays}
+            subsequentTrackedMap={subsequentTrackedMap}
+            onReassignSubsequentToPastDay={handleReassignSubsequentToPastDay}
+            onOpenPastDay={handleOpenPastDay}
           />
         )}
 
@@ -1728,6 +1978,9 @@ export default function App() {
                 deskElapsedSeconds={deskElapsedSeconds}
                 isDeskTimerPaused={isDeskTimerPaused}
                 onToggleDeskTimerPause={handleToggleDeskTimerPause}
+                openDeskOriginDate={openDeskOriginDate}
+                currentSystemDate={currentSystemDate}
+                onResetOpenDeskToToday={handleResetOpenDeskToToday}
                 onOpenDeskProgress={() => setProgressModalActivity('desk')}
                 lastLoggedEntry={lastLoggedEntry}
                 onUndoEntry={handleDeleteEntry}
@@ -1865,6 +2118,7 @@ export default function App() {
                 template={progressTemplate}
                 onChangeTemplate={handleChangeProgressTemplate}
                 onDeleteEntry={handleDeleteEntry}
+                onReassignEntryToPrevDay={handleReassignEntryToPrevDay}
                 activeDesk={activeDeskTelemetry}
                 vaultEntries={vaultEntries}
                 achievementsCount={achievements.length}
@@ -1896,6 +2150,7 @@ export default function App() {
             template={progressTemplate}
             onChangeTemplate={handleChangeProgressTemplate}
             onDeleteEntry={handleDeleteEntry}
+            onReassignEntryToPrevDay={handleReassignEntryToPrevDay}
             activeDesk={activeDeskTelemetry}
             vaultEntries={vaultEntries}
             achievementsCount={achievements.length}
