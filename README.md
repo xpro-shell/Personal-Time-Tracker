@@ -37,6 +37,29 @@ The repository allows the `esbuild` install script because Vite needs it to inst
 - Added hourly prompts to record what you did. Untracked hours can be sent to the review queue, where users can choose how to handle them.
 - Fixed the introduction flow so the app waits for the user to tap before continuing when prompted to “Tap anywhere to continue.”
 
+### v2.0 "Level Up" (18 Nov 2026)
+
+**✨ New**
+- **Pause button:** every timer now has a Pause button.
+- **Growth Chatbot (Beta):** a small circle button in Progress and Graphs. Ask it things like "How much did I grow this week?" or "What's my all-time progress?". It's still in testing, so answers may not be perfect yet.
+- **Active Desk Time tracking:** your desk time is now tracked and shows in Progress and Graphs.
+- **What's New popup:** after you update, you'll see what changed the first time you open the app.
+
+**🎨 Better Look**
+- Studio Light colours now change smoothly.
+- More stylish and royal fonts in the Studio Light bundle.
+- Cleaner headings: "Desk Center", day names, dates and other text now have the right size and importance.
+
+**📊 New Progress and Graphs**
+- The old timeline and heatmap are removed because they were too complicated.
+- The new Progress section is simple and easy to read.
+- Every activity on the Home page has a small button to see its progress by week, month or year.
+- New templates in the Progress section, like Studio Light, so you can pick the look you like.
+- Hourly progress is easier to see.
+
+**🛠 Fixes and Improvements**
+- **Vault** now shows This Week's lost time by default. You can switch to Total or Past time.
+- **Sleep logging fixed:** you can now log sleep at any time, like 1 AM to 10 AM. Before, it only worked if you slept before 12 AM and woke up after.
 ## Optional configuration
 
 Most local tracking features do not require a `.env` file. Some AI Studio or Gemini-powered functionality may need a Gemini API key and deployment-specific configuration. See [`.env.example`](.env.example) for available settings.
