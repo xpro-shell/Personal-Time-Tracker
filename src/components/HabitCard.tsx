@@ -26,6 +26,7 @@ interface HabitCardProps {
     startTimeIso?: string;
     endTimeIso?: string;
     durationMinutes?: number;
+    replaceExisting?: boolean;
   }) => void;
   onEditHabit: (habit: CustomHabit) => void;
   onOpenProgress?: (habit: CustomHabit) => void;
@@ -91,6 +92,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
 
   // Custom Time Window state
   const [showCustomTime, setShowCustomTime] = useState(false);
+  const [replaceExisting, setReplaceExisting] = useState(false);
   const [startTime, setStartTime] = useState<string>(() => formatTimeHHMM(new Date()));
   const [durationHours, setDurationHours] = useState<number>(safeDefaultHours);
   const [endTime, setEndTime] = useState<string>(() =>
@@ -155,6 +157,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
       startTimeIso: startObj.toISOString(),
       endTimeIso: endObj.toISOString(),
       durationMinutes: totalDurationMins,
+      replaceExisting,
     });
     setShowCustomTime(false);
   };
@@ -371,14 +374,24 @@ export const HabitCard: React.FC<HabitCardProps> = ({
             playDeskClick();
             setShowCustomTime((prev) => !prev);
           }}
-          className={`interactive-press px-3 py-2 text-xs font-mono rounded-xl border transition-all cursor-pointer ${
+          className={`group interactive-press flex items-center justify-center px-2.5 py-2 text-xs font-mono rounded-xl border transition-all duration-200 ease-out cursor-pointer shrink-0 overflow-hidden ${
             showCustomTime
-              ? 'bg-emerald-400 text-zinc-950 border-emerald-300'
-              : 'bg-zinc-900/90 text-zinc-300 border-zinc-800 hover:text-white hover:border-zinc-600'
+              ? 'bg-emerald-400 text-zinc-950 border-emerald-300 font-bold px-3'
+              : 'bg-zinc-900/90 text-zinc-300 border-zinc-800 hover:text-white hover:border-zinc-600 hover:px-3'
           }`}
-          title="Forgot to tap on time? Enter custom start/end times with auto-calculated duration"
+          title="Forgot to tap on time? Log custom start/end window"
+          aria-label={`Log custom time for ${habit.name}`}
         >
-          <Clock className="w-3.5 h-3.5" />
+          <Clock className="w-3.5 h-3.5 shrink-0" />
+          <span
+            className={`text-[11px] font-mono font-semibold whitespace-nowrap overflow-hidden transition-all duration-200 ${
+              showCustomTime
+                ? 'max-w-[36px] opacity-100 ml-1'
+                : 'max-w-0 opacity-0 group-hover:max-w-[36px] group-hover:opacity-100 group-hover:ml-1'
+            }`}
+          >
+            Log
+          </span>
         </button>
       </div>
 
@@ -434,6 +447,18 @@ export const HabitCard: React.FC<HabitCardProps> = ({
               />
             </div>
           </div>
+
+          {isTicked && (
+            <label className="flex items-center gap-2 text-[11px] font-sans text-zinc-300 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={replaceExisting}
+                onChange={(e) => setReplaceExisting(e.target.checked)}
+                className="accent-emerald-400 rounded cursor-pointer"
+              />
+              <span>Replace existing log instead of adding another session</span>
+            </label>
+          )}
 
           <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
             <div className="text-xs font-mono text-zinc-300">

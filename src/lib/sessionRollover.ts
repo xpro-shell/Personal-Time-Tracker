@@ -428,33 +428,26 @@ export interface ReassignEntriesResult {
   movedMinutes: number;
 }
 
-/**
- * Reassigns tracked entries (e.g., post-midnight study/break logs that landed on Today)
- * back to targetDate (e.g., Yesterday), updating study quota & clearing/reducing redundant
- * shortfall vault/carry-forward debt for targetDate automatically.
- */
-export function reassignEntriesToDate(input: ReassignEntriesInput): ReassignEntriesResult {
+export function reconcileStudyDebtForDate(input: {
+  targetDate: string;
+  prevEntries: TimeEntry[];
+  nextEntries: TimeEntry[];
+  vaultEntries: VaultEntry[];
+  carriedDates: string[];
+  studyDeficitCarryForwardMinutes: number;
+}): {
+  nextVaultEntries: VaultEntry[];
+  nextCarriedDates: string[];
+  nextStudyDeficitCarryForwardMinutes: number;
+} {
   const {
-    entries,
-    entryIds,
     targetDate,
+    prevEntries,
+    nextEntries,
     vaultEntries,
     carriedDates,
     studyDeficitCarryForwardMinutes,
   } = input;
-
-  if (!isValidYmd(targetDate) || entryIds.length === 0) {
-    return {
-      nextEntries: entries,
-      nextVaultEntries: vaultEntries,
-      nextCarriedDates: carriedDates,
-      nextStudyDeficitCarryForwardMinutes: studyDeficitCarryForwardMinutes,
-      reassignedCount: 0,
-      movedMinutes: 0,
-    };
-  }
-
-  const idSet = new Set(entryIds);
 
   const studyMinutesOnTarget = (list: TimeEntry[]) =>
     list.reduce((sum, e) => {
@@ -465,32 +458,7 @@ export function reassignEntriesToDate(input: ReassignEntriesInput): ReassignEntr
       return sum;
     }, 0);
 
-  const prevStudyMins = studyMinutesOnTarget(entries);
-  let reassignedCount = 0;
-  let movedMinutes = 0;
-
-  const nextEntries = entries.map((e) => {
-    if (!idSet.has(e.id) || e.type === 'day_boundary') return e;
-    if (getEntryAssignedDate(e) === targetDate) return e;
-    reassignedCount += 1;
-    movedMinutes += e.durationMinutes || 0;
-    return {
-      ...e,
-      assignedDate: targetDate,
-    };
-  });
-
-  if (reassignedCount === 0) {
-    return {
-      nextEntries: entries,
-      nextVaultEntries: vaultEntries,
-      nextCarriedDates: carriedDates,
-      nextStudyDeficitCarryForwardMinutes: studyDeficitCarryForwardMinutes,
-      reassignedCount: 0,
-      movedMinutes: 0,
-    };
-  }
-
+  const prevStudyMins = studyMinutesOnTarget(prevEntries);
   const newStudyMins = studyMinutesOnTarget(nextEntries);
   const prevDeficit = Math.max(0, BASE_STUDY_TARGET_MINUTES - prevStudyMins);
   const newDeficit = Math.max(0, BASE_STUDY_TARGET_MINUTES - newStudyMins);
@@ -522,10 +490,78 @@ export function reassignEntriesToDate(input: ReassignEntriesInput): ReassignEntr
   }
 
   return {
-    nextEntries,
     nextVaultEntries,
     nextCarriedDates,
     nextStudyDeficitCarryForwardMinutes: nextStudyDeficit,
+  };
+}
+
+/**
+ * Reassigns tracked entries (e.g., post-midnight study/break logs that landed on Today)
+ * back to targetDate (e.g., Yesterday), updating study quota & clearing/reducing redundant
+ * shortfall vault/carry-forward debt for targetDate automatically.
+ */
+export function reassignEntriesToDate(input: ReassignEntriesInput): ReassignEntriesResult {
+  const {
+    entries,
+    entryIds,
+    targetDate,
+    vaultEntries,
+    carriedDates,
+    studyDeficitCarryForwardMinutes,
+  } = input;
+
+  if (!isValidYmd(targetDate) || entryIds.length === 0) {
+    return {
+      nextEntries: entries,
+      nextVaultEntries: vaultEntries,
+      nextCarriedDates: carriedDates,
+      nextStudyDeficitCarryForwardMinutes: studyDeficitCarryForwardMinutes,
+      reassignedCount: 0,
+      movedMinutes: 0,
+    };
+  }
+
+  const idSet = new Set(entryIds);
+  let reassignedCount = 0;
+  let movedMinutes = 0;
+
+  const nextEntries = entries.map((e) => {
+    if (!idSet.has(e.id) || e.type === 'day_boundary') return e;
+    if (getEntryAssignedDate(e) === targetDate) return e;
+    reassignedCount += 1;
+    movedMinutes += e.durationMinutes || 0;
+    return {
+      ...e,
+      assignedDate: targetDate,
+    };
+  });
+
+  if (reassignedCount === 0) {
+    return {
+      nextEntries: entries,
+      nextVaultEntries: vaultEntries,
+      nextCarriedDates: carriedDates,
+      nextStudyDeficitCarryForwardMinutes: studyDeficitCarryForwardMinutes,
+      reassignedCount: 0,
+      movedMinutes: 0,
+    };
+  }
+
+  const debtUpdate = reconcileStudyDebtForDate({
+    targetDate,
+    prevEntries: entries,
+    nextEntries,
+    vaultEntries,
+    carriedDates,
+    studyDeficitCarryForwardMinutes,
+  });
+
+  return {
+    nextEntries,
+    nextVaultEntries: debtUpdate.nextVaultEntries,
+    nextCarriedDates: debtUpdate.nextCarriedDates,
+    nextStudyDeficitCarryForwardMinutes: debtUpdate.nextStudyDeficitCarryForwardMinutes,
     reassignedCount,
     movedMinutes,
   };

@@ -24,6 +24,7 @@ export type ProgressTimeframe = 'hours' | 'week' | 'weeks' | 'months' | 'years';
 export type ProgressTemplateId =
   | 'clean-bars'
   | 'growth-cards'
+  | 'studio-matrix'
   | 'smooth-wave'
   | 'rings-grid'
   | 'pulse-blocks';
@@ -83,6 +84,38 @@ export interface ActivityGrowthCardData {
   totalDays: number;
 }
 
+export interface ActivityMatrixColumn {
+  key: string;
+  label: string;
+  subLabel: string;
+  isCurrent?: boolean;
+}
+
+export interface ActivityMatrixCell {
+  key: string;
+  minutes: number;
+  pct: number;
+  intensity: 0 | 1 | 2 | 3 | 4;
+}
+
+export interface ActivityMatrixRow {
+  activity: ActivityMeta;
+  cells: ActivityMatrixCell[];
+  totalMinutes: number;
+  activeColumns: number;
+}
+
+export interface ActivityMatrixData {
+  columns: ActivityMatrixColumn[];
+  rows: ActivityMatrixRow[];
+  scopeLabel: string;
+  periodComparison: {
+    label: string;
+    pctChange: number;
+    direction: 'up' | 'down' | 'flat';
+  };
+}
+
 export interface ProgressSeriesResult {
   activity: ActivityMeta;
   buckets: ProgressBucket[];
@@ -95,6 +128,7 @@ export interface ProgressSeriesResult {
   maxBucketMinutes: number;
   yesterdayComparison: YesterdayComparison;
   activityCards: ActivityGrowthCardData[];
+  activityMatrix: ActivityMatrixData;
 }
 
 const HABIT_COLORS: Record<CustomHabit['colorTheme'], {
@@ -805,6 +839,195 @@ export function buildProgressSeries(options: {
     }
   });
 
+  // Compute multi-activity Matrix Grid (dynamically uses software colors & local user habits)
+  const buildMatrix = (): ActivityMatrixData => {
+    const toIntensity = (mins: number, targetMins: number): { pct: number; intensity: 0 | 1 | 2 | 3 | 4 } => {
+      if (mins <= 0) return { pct: 0, intensity: 0 };
+      const pct = Math.min(100, Math.round((mins / Math.max(1, targetMins)) * 100));
+      if (pct >= 85) return { pct, intensity: 4 };
+      if (pct >= 50) return { pct, intensity: 3 };
+      if (pct >= 20) return { pct, intensity: 2 };
+      return { pct, intensity: 1 };
+    };
+
+    const anchorYr = anchorDate.getFullYear();
+    const anchorMo = anchorDate.getMonth();
+    const anchorDay = anchorDate.getDate();
+
+    let columns: ActivityMatrixColumn[] = [];
+    let getCellMinutes: (act: ActivityMeta, colKey: string) => { mins: number; target: number };
+    let scopeLabel = 'Month';
+    let periodComparison: ActivityMatrixData['periodComparison'] = {
+      label: 'yesterday',
+      pctChange: yesterdayComparison.pctChange,
+      direction: yesterdayComparison.direction,
+    };
+
+    if (timeframe === 'hours') {
+      scopeLabel = 'Today (24h)';
+      const currentHour = selectedDate === todayYmd ? new Date().getHours() : -1;
+      columns = Array.from({ length: 24 }).map((_, h) => ({
+        key: String(h),
+        label: h.toString().padStart(2, '0'),
+        subLabel: `${h.toString().padStart(2, '0')}:00`,
+        isCurrent: h === currentHour,
+      }));
+      getCellMinutes = (act, colKey) => {
+        const h = parseInt(colKey, 10);
+        const slotStartMs = new Date(anchorYr, anchorMo, anchorDay, h, 0, 0, 0).getTime();
+        const slotEndMs = slotStartMs + 3600 * 1000;
+        let mins = 0;
+        entries.forEach((e) => {
+          if (!entryMatchesActivity(e, act.id, habits)) return;
+          const entryYmd = getEntryAssignedDate(e);
+          if (entryYmd && entryYmd !== selectedDate && (e.assignedDate || e.type !== 'sleep')) return;
+          const startMs = new Date(e.startTime).getTime();
+          if (isNaN(startMs)) return;
+          const dur = getEntryDurationMins(e);
+          const endMs = e.endTime ? new Date(e.endTime).getTime() : startMs + dur * 60000;
+          const overlapMs = Math.max(0, Math.min(endMs, slotEndMs) - Math.max(startMs, slotStartMs));
+          if (overlapMs > 0) mins += Math.round(overlapMs / 60000);
+        });
+        return { mins: Math.min(60, mins), target: Math.min(60, act.dailyTargetMinutes) };
+      };
+    } else if (timeframe === 'week') {
+      scopeLabel = 'This Week';
+      const dow = anchorDate.getDay();
+      const diffToMon = dow === 0 ? -6 : 1 - dow;
+      const mon = new Date(anchorYr, anchorMo, anchorDay + diffToMon);
+      columns = Array.from({ length: 7 }).map((_, idx) => {
+        const d = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + idx);
+        const ymd = formatLocalYMD(d);
+        return {
+          key: ymd,
+          label: d.toLocaleDateString('en-US', { weekday: 'short' }),
+          subLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          isCurrent: ymd === selectedDate,
+        };
+      });
+      getCellMinutes = (act, colKey) => ({
+        mins: sumMinutesForRange(entries, act.id, habits, colKey, colKey),
+        target: act.dailyTargetMinutes,
+      });
+
+      const prevMon = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() - 7);
+      const prevSun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() - 1);
+      const curStart = columns[0].key;
+      const curEnd = columns[columns.length - 1].key;
+      const curTotal = sumMinutesForRange(entries, activityFilter, habits, curStart, curEnd);
+      const prevTotal = sumMinutesForRange(
+        entries,
+        activityFilter,
+        habits,
+        formatLocalYMD(prevMon),
+        formatLocalYMD(prevSun)
+      );
+      const cmp = computeDelta(curTotal, prevTotal, activity.dailyTargetMinutes * 7);
+      periodComparison = { label: 'last week', pctChange: cmp.pctChange, direction: cmp.direction };
+    } else if (timeframe === 'weeks') {
+      scopeLabel = 'Last 8 Weeks';
+      const dow = anchorDate.getDay();
+      const diffToMon = dow === 0 ? -6 : 1 - dow;
+      const anchorMon = new Date(anchorYr, anchorMo, anchorDay + diffToMon);
+      columns = Array.from({ length: 8 }).map((_, idx) => {
+        const weeksBack = 7 - idx;
+        const wStart = new Date(anchorMon.getFullYear(), anchorMon.getMonth(), anchorMon.getDate() - weeksBack * 7);
+        const wEnd = new Date(wStart.getFullYear(), wStart.getMonth(), wStart.getDate() + 6);
+        const sYmd = formatLocalYMD(wStart);
+        const eYmd = formatLocalYMD(wEnd);
+        return {
+          key: `${sYmd}|${eYmd}`,
+          label: weeksBack === 0 ? 'Now' : `-${weeksBack}w`,
+          subLabel: `${wStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${wEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+          isCurrent: weeksBack === 0,
+        };
+      });
+      getCellMinutes = (act, colKey) => {
+        const [sYmd, eYmd] = colKey.split('|');
+        return {
+          mins: sumMinutesForRange(entries, act.id, habits, sYmd, eYmd),
+          target: act.dailyTargetMinutes * 7,
+        };
+      };
+    } else if (timeframe === 'months') {
+      scopeLabel = anchorDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const daysInMonth = new Date(anchorYr, anchorMo + 1, 0).getDate();
+      columns = Array.from({ length: daysInMonth }).map((_, idx) => {
+        const dayNum = idx + 1;
+        const d = new Date(anchorYr, anchorMo, dayNum);
+        const ymd = formatLocalYMD(d);
+        return {
+          key: ymd,
+          label: String(dayNum),
+          subLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          isCurrent: ymd === selectedDate,
+        };
+      });
+      getCellMinutes = (act, colKey) => ({
+        mins: sumMinutesForRange(entries, act.id, habits, colKey, colKey),
+        target: act.dailyTargetMinutes,
+      });
+
+      const curMonthStart = formatLocalYMD(new Date(anchorYr, anchorMo, 1));
+      const curMonthEnd = formatLocalYMD(new Date(anchorYr, anchorMo, daysInMonth));
+      const prevMonthDays = new Date(anchorYr, anchorMo, 0).getDate();
+      const prevMonthStart = formatLocalYMD(new Date(anchorYr, anchorMo - 1, 1));
+      const prevMonthEnd = formatLocalYMD(new Date(anchorYr, anchorMo - 1, prevMonthDays));
+      const curTotal = sumMinutesForRange(entries, activityFilter, habits, curMonthStart, curMonthEnd);
+      const prevTotal = sumMinutesForRange(entries, activityFilter, habits, prevMonthStart, prevMonthEnd);
+      const cmp = computeDelta(curTotal, prevTotal, activity.dailyTargetMinutes * 15);
+      periodComparison = { label: 'last month', pctChange: cmp.pctChange, direction: cmp.direction };
+    } else {
+      scopeLabel = `Year ${anchorYr}`;
+      columns = Array.from({ length: 12 }).map((_, moIdx) => {
+        const d = new Date(anchorYr, moIdx, 1);
+        const daysInMo = new Date(anchorYr, moIdx + 1, 0).getDate();
+        const sYmd = formatLocalYMD(new Date(anchorYr, moIdx, 1));
+        const eYmd = formatLocalYMD(new Date(anchorYr, moIdx, daysInMo));
+        return {
+          key: `${sYmd}|${eYmd}|${daysInMo}`,
+          label: d.toLocaleDateString('en-US', { month: 'short' }),
+          subLabel: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          isCurrent: moIdx === anchorMo,
+        };
+      });
+      getCellMinutes = (act, colKey) => {
+        const [sYmd, eYmd, daysStr] = colKey.split('|');
+        const daysInMo = parseInt(daysStr, 10) || 30;
+        return {
+          mins: sumMinutesForRange(entries, act.id, habits, sYmd, eYmd),
+          target: act.dailyTargetMinutes * daysInMo,
+        };
+      };
+
+      const curYrStart = `${anchorYr}-01-01`;
+      const curYrEnd = `${anchorYr}-12-31`;
+      const prevYrStart = `${anchorYr - 1}-01-01`;
+      const prevYrEnd = `${anchorYr - 1}-12-31`;
+      const curTotal = sumMinutesForRange(entries, activityFilter, habits, curYrStart, curYrEnd);
+      const prevTotal = sumMinutesForRange(entries, activityFilter, habits, prevYrStart, prevYrEnd);
+      const cmp = computeDelta(curTotal, prevTotal, activity.dailyTargetMinutes * 90);
+      periodComparison = { label: 'last year', pctChange: cmp.pctChange, direction: cmp.direction };
+    }
+
+    const rows: ActivityMatrixRow[] = individualActivities.map((act) => {
+      let totalMinutes = 0;
+      let activeColumns = 0;
+      const cells: ActivityMatrixCell[] = columns.map((col) => {
+        const { mins, target } = getCellMinutes(act, col.key);
+        totalMinutes += mins;
+        if (mins > 0) activeColumns += 1;
+        const { pct, intensity } = toIntensity(mins, target);
+        return { key: col.key, minutes: mins, pct, intensity };
+      });
+      return { activity: act, cells, totalMinutes, activeColumns };
+    });
+
+    return { columns, rows, scopeLabel, periodComparison };
+  };
+
+  const activityMatrix = buildMatrix();
+
   return {
     activity,
     buckets,
@@ -817,5 +1040,6 @@ export function buildProgressSeries(options: {
     maxBucketMinutes,
     yesterdayComparison,
     activityCards,
+    activityMatrix,
   };
 }

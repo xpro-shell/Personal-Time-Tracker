@@ -1,6 +1,7 @@
-import { Award, BarChart2, BookOpen, Flame, Pause, Play, Square, Target, Zap } from 'lucide-react';
+import { Award, BarChart2, BookOpen, Clock, Flame, Pause, Play, Plus, Square, Target, Zap } from 'lucide-react';
 import React, { useState } from 'react';
-import { playDeskClick } from '../lib/audioAlert';
+import { playDeskClick, playEarnedChime } from '../lib/audioAlert';
+import { EntryType } from '../types/tracker';
 
 interface StudyQuotaCardProps {
   completedStudyMinutesToday: number;
@@ -10,15 +11,50 @@ interface StudyQuotaCardProps {
   studyDeficitCarryForwardMinutes: number; // e.g. 120 mins from yesterday
   currentStreak: number;
   level: number;
+  selectedDate?: string;
   onStartStudy: (topic: string) => void;
   onPauseSession?: () => void;
   onResumeSession?: () => void;
   onStopSession: () => void;
   onShortcodeSubmit: (command: string) => void;
+  onLogPastStudy?: (options: {
+    type: EntryType;
+    topic: string;
+    startTimeIso: string;
+    endTimeIso: string;
+    durationMinutes: number;
+    assignedDate?: string;
+    note?: string;
+  }) => void;
   onOpenProgress?: () => void;
 }
 
 const QUICK_TOPICS = ['Deep Work', 'DSA / Coding', 'System Design', 'Revision'];
+const STUDY_DURATION_CHIPS = [15, 30, 45, 60, 90, 120];
+
+function formatHHMM(d: Date): string {
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+}
+
+function addMinsToHHMM(timeStr: string, mins: number): string {
+  const [h, m] = timeStr.split(':').map((v) => parseInt(v, 10) || 0);
+  const totalMins = (h * 60 + m + mins) % 1440;
+  return `${Math.floor(totalMins / 60).toString().padStart(2, '0')}:${(totalMins % 60).toString().padStart(2, '0')}`;
+}
+
+function subtractMinsFromHHMM(timeStr: string, mins: number): string {
+  const [h, m] = timeStr.split(':').map((v) => parseInt(v, 10) || 0);
+  const totalMins = (((h * 60 + m - mins) % 1440) + 1440) % 1440;
+  return `${Math.floor(totalMins / 60).toString().padStart(2, '0')}:${(totalMins % 60).toString().padStart(2, '0')}`;
+}
+
+function diffMinsBetweenHHMM(startStr: string, endStr: string): number {
+  const [h1, m1] = startStr.split(':').map((v) => parseInt(v, 10) || 0);
+  const [h2, m2] = endStr.split(':').map((v) => parseInt(v, 10) || 0);
+  let diff = h2 * 60 + m2 - (h1 * 60 + m1);
+  if (diff <= 0) diff += 1440;
+  return diff;
+}
 
 export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
   completedStudyMinutesToday,
@@ -28,15 +64,27 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
   studyDeficitCarryForwardMinutes,
   currentStreak,
   level,
+  selectedDate,
   onStartStudy,
   onPauseSession,
   onResumeSession,
   onStopSession,
   onShortcodeSubmit,
+  onLogPastStudy,
   onOpenProgress,
 }) => {
   const [studyTopicInput, setStudyTopicInput] = useState('');
   const [commandInput, setCommandInput] = useState('');
+
+  // Manual past-study state
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualType, setManualType] = useState<'study' | 'content'>('study');
+  const [manualTopic, setManualTopic] = useState('Deep Work');
+  const [manualDate, setManualDate] = useState<string>(() => selectedDate || new Date().toISOString().slice(0, 10));
+  const [manualDurationMins, setManualDurationMins] = useState<number>(60);
+  const [manualEnd, setManualEnd] = useState<string>(() => formatHHMM(new Date()));
+  const [manualStart, setManualStart] = useState<string>(() => subtractMinsFromHHMM(formatHHMM(new Date()), 60));
+  const [manualNote, setManualNote] = useState('');
 
   const BASE_TARGET_MINUTES = 6 * 60; // 360 mins (6h)
   const effectiveTargetMinutes = BASE_TARGET_MINUTES + Math.max(0, studyDeficitCarryForwardMinutes);
@@ -70,6 +118,42 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
     setCommandInput('');
   };
 
+  const handleOpenManualStudy = () => {
+    playDeskClick();
+    if (!showManualModal) {
+      const nowStr = formatHHMM(new Date());
+      setManualDate(selectedDate || new Date().toISOString().slice(0, 10));
+      setManualTopic(studyTopicInput.trim() || 'Deep Work');
+      setManualDurationMins(60);
+      setManualEnd(nowStr);
+      setManualStart(subtractMinsFromHHMM(nowStr, 60));
+      setManualNote('');
+    }
+    setShowManualModal((prev) => !prev);
+  };
+
+  const handleConfirmManualStudy = () => {
+    if (!onLogPastStudy) return;
+    const targetDate = manualDate || selectedDate || new Date().toISOString().slice(0, 10);
+    const [y, m, d] = targetDate.split('-').map(Number);
+    const [sH, sM] = manualStart.split(':').map((v) => parseInt(v, 10) || 0);
+    const startDate = new Date(y, m - 1, d, sH, sM, 0, 0);
+    const safeMins = Math.max(1, manualDurationMins);
+    const endDate = new Date(startDate.getTime() + safeMins * 60000);
+
+    playEarnedChime();
+    onLogPastStudy({
+      type: manualType,
+      topic: manualTopic.trim() || (manualType === 'content' ? 'Content Creation' : 'General Study'),
+      startTimeIso: startDate.toISOString(),
+      endTimeIso: endDate.toISOString(),
+      durationMinutes: safeMins,
+      assignedDate: targetDate,
+      ...(manualNote.trim() ? { note: manualNote.trim() } : {}),
+    });
+    setShowManualModal(false);
+  };
+
   return (
     <div
       className={`studio-card p-5 rounded-2xl border flex flex-col justify-between gap-4 relative overflow-hidden ${
@@ -88,21 +172,21 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
 
       {/* Header & Progress */}
       <div className="relative">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 shrink-0">
               <BookOpen className="w-4 h-4 text-emerald-400" />
             </div>
-            <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white">
+            <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white truncate">
               6-Hour Study Quota
             </h3>
           </div>
-          <div className="flex items-center gap-2 text-xs font-mono tabular-nums text-zinc-400">
-            <div className="flex items-center gap-1 text-amber-300 font-semibold">
+          <div className="flex items-center gap-1.5 text-xs font-mono tabular-nums text-zinc-400 shrink-0">
+            <div className="hidden sm:flex items-center gap-1 text-amber-300 font-semibold">
               <Flame className="w-3.5 h-3.5 text-amber-400" />
               <span>{currentStreak}d</span>
             </div>
-            <span aria-hidden="true" className="text-zinc-700">·</span>
+            <span aria-hidden="true" className="hidden sm:inline text-zinc-700">·</span>
             <div className="flex items-center gap-1 text-emerald-400 font-semibold">
               <Award className="w-3.5 h-3.5" />
               <span>Lv {level}</span>
@@ -119,6 +203,30 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
                 aria-label="View Study progress graph"
               >
                 <BarChart2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onLogPastStudy && (
+              <button
+                type="button"
+                onClick={handleOpenManualStudy}
+                className={`group interactive-press flex items-center justify-center rounded-lg border transition-all duration-200 ease-out cursor-pointer shrink-0 overflow-hidden ${
+                  showManualModal
+                    ? 'h-7 px-2.5 bg-emerald-400 text-zinc-950 border-emerald-300 font-bold'
+                    : 'h-7 px-2 hover:px-2.5 bg-emerald-500/15 border-emerald-500/35 text-emerald-200 hover:border-emerald-400 hover:text-white'
+                }`}
+                title="Forgot to start timer? Log past Study or Content session anytime"
+                aria-label="Log past Study or Content session"
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span
+                  className={`text-[11px] font-mono font-semibold whitespace-nowrap overflow-hidden transition-all duration-200 ${
+                    showManualModal
+                      ? 'max-w-[36px] opacity-100 ml-1'
+                      : 'max-w-0 opacity-0 group-hover:max-w-[36px] group-hover:opacity-100 group-hover:ml-1'
+                  }`}
+                >
+                  Log
+                </span>
               </button>
             )}
           </div>
@@ -171,6 +279,163 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
           </div>
         )}
       </div>
+
+      {/* Expandable Manual Study / Content Retroactive Logger */}
+      {showManualModal && onLogPastStudy && (
+        <div className="p-3.5 bg-zinc-950/95 border border-emerald-500/35 rounded-xl space-y-3 text-xs font-mono animate-in fade-in duration-150 relative">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-emerald-200">
+              Log Missed Focus Session
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowManualModal(false)}
+              className="text-zinc-500 hover:text-zinc-300 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-900 border border-zinc-800 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setManualType('study')}
+              className={`py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors ${
+                manualType === 'study'
+                  ? 'bg-emerald-400 text-zinc-950'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Study Focus
+            </button>
+            <button
+              type="button"
+              onClick={() => setManualType('content')}
+              className={`py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors ${
+                manualType === 'content'
+                  ? 'bg-violet-400 text-zinc-950'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Content Creation
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input
+              type="text"
+              value={manualTopic}
+              onChange={(e) => setManualTopic(e.target.value)}
+              placeholder="Topic studied..."
+              className="px-2.5 py-1.5 text-xs font-sans bg-zinc-900 border border-zinc-700 rounded text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-400"
+            />
+            <input
+              type="date"
+              value={manualDate}
+              onChange={(e) => e.target.value && setManualDate(e.target.value)}
+              className="px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="block label-scandi text-zinc-500 mb-1">Start</label>
+              <input
+                type="time"
+                value={manualStart}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  setManualStart(v);
+                  setManualEnd(addMinsToHHMM(v, manualDurationMins));
+                }}
+                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
+              />
+            </div>
+            <div>
+              <label className="block label-scandi text-zinc-500 mb-1">Minutes</label>
+              <input
+                type="number"
+                min={1}
+                max={960}
+                value={manualDurationMins}
+                onChange={(e) => {
+                  const val = Math.max(1, Math.min(960, parseInt(e.target.value, 10) || 15));
+                  setManualDurationMins(val);
+                  setManualEnd(addMinsToHHMM(manualStart, val));
+                }}
+                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
+              />
+            </div>
+            <div>
+              <label className="block label-scandi text-zinc-500 mb-1">End</label>
+              <input
+                type="time"
+                value={manualEnd}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  setManualEnd(v);
+                  setManualDurationMins(diffMinsBetweenHHMM(manualStart, v));
+                }}
+                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 font-semibold focus:outline-none focus:border-emerald-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {STUDY_DURATION_CHIPS.map((mins) => (
+              <button
+                key={mins}
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  setManualDurationMins(mins);
+                  setManualEnd(addMinsToHHMM(manualStart, mins));
+                }}
+                className={`px-2 py-0.5 text-[10px] rounded border cursor-pointer ${
+                  manualDurationMins === mins
+                    ? 'bg-emerald-400/20 border-emerald-400 text-emerald-200 font-bold'
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+                }`}
+              >
+                {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+              </button>
+            ))}
+          </div>
+
+          <input
+            type="text"
+            value={manualNote}
+            onChange={(e) => setManualNote(e.target.value)}
+            placeholder="Optional session note..."
+            className="w-full px-2.5 py-1.5 text-xs font-sans bg-zinc-900 border border-zinc-700 rounded text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-400"
+          />
+
+          <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
+            <span className="text-[11px] text-emerald-400">
+              {manualStart} → {manualEnd} ({manualDurationMins}m)
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowManualModal(false)}
+                className="px-2 py-1 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmManualStudy}
+                className="flex items-center gap-1 px-3 py-1 font-semibold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Save Study</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Study Topic + Interactive Quick Chips + Study (S on) + Quick Shortcode Bar */}
       <div className="pt-3.5 border-t border-zinc-800/80 space-y-3 relative">
@@ -271,7 +536,7 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
         {/* Quick Shortcode Bar */}
         <form onSubmit={handleShortcodeFormSubmit}>
           <label htmlFor="study-shortcode-input" className="block label-scandi text-zinc-400 mb-1.5">
-            Quick Shortcode Bar <span className="font-mono normal-case tracking-normal text-zinc-500">(S on topic, S off, bon, boff, riyaz 3, undo)</span>
+            Quick Shortcode Bar <span className="font-mono normal-case tracking-normal text-zinc-500">(S on topic, s 45m, b 20m, bon, riyaz 3, undo)</span>
           </label>
           <div className="relative">
             <input

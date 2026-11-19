@@ -1,5 +1,5 @@
 import confetti from 'canvas-confetti';
-import { AlertTriangle, BarChart2, Coffee, Pause, Play, Sparkles, Square, TrendingUp } from 'lucide-react';
+import { AlertTriangle, BarChart2, Clock, Coffee, Pause, Play, Plus, Sparkles, Square, TrendingUp } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { playBreakExhaustedAlert, playDeskClick, playEarnedChime } from '../lib/audioAlert';
 
@@ -9,11 +9,45 @@ interface BreakBankCardProps {
   isSessionPaused?: boolean;
   activeBreakDurationSeconds: number;
   bankedCarryForwardMinutes: number;
+  selectedDate?: string;
   onStartBreak: () => void;
   onPauseSession?: () => void;
   onResumeSession?: () => void;
   onStopBreak: () => void;
+  onLogPastBreak?: (options: {
+    topic: string;
+    startTimeIso: string;
+    endTimeIso: string;
+    durationMinutes: number;
+    assignedDate?: string;
+  }) => void;
   onOpenProgress?: () => void;
+}
+
+const BREAK_DURATION_CHIPS = [10, 15, 20, 30, 45, 60];
+
+function formatHHMM(d: Date): string {
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+}
+
+function addMinsToHHMM(timeStr: string, mins: number): string {
+  const [h, m] = timeStr.split(':').map((v) => parseInt(v, 10) || 0);
+  const totalMins = (h * 60 + m + mins) % 1440;
+  return `${Math.floor(totalMins / 60).toString().padStart(2, '0')}:${(totalMins % 60).toString().padStart(2, '0')}`;
+}
+
+function subtractMinsFromHHMM(timeStr: string, mins: number): string {
+  const [h, m] = timeStr.split(':').map((v) => parseInt(v, 10) || 0);
+  const totalMins = (((h * 60 + m - mins) % 1440) + 1440) % 1440;
+  return `${Math.floor(totalMins / 60).toString().padStart(2, '0')}:${(totalMins % 60).toString().padStart(2, '0')}`;
+}
+
+function diffMinsBetweenHHMM(startStr: string, endStr: string): number {
+  const [h1, m1] = startStr.split(':').map((v) => parseInt(v, 10) || 0);
+  const [h2, m2] = endStr.split(':').map((v) => parseInt(v, 10) || 0);
+  let diff = h2 * 60 + m2 - (h1 * 60 + m1);
+  if (diff <= 0) diff += 1440;
+  return diff;
 }
 
 export const BreakBankCard: React.FC<BreakBankCardProps> = ({
@@ -22,10 +56,12 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
   isSessionPaused = false,
   activeBreakDurationSeconds,
   bankedCarryForwardMinutes,
+  selectedDate,
   onStartBreak,
   onPauseSession,
   onResumeSession,
   onStopBreak,
+  onLogPastBreak,
   onOpenProgress,
 }) => {
   const BASE_QUOTA_SECONDS = 2 * 60 * 60; // 7,200 seconds (2h)
@@ -35,6 +71,14 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
 
   const [hasAlerted, setHasAlerted] = useState(false);
   const [showCelebrationModal, setShowCelebrationModal] = useState(false);
+
+  // Manual past break state
+  const [showManualBreak, setShowManualBreak] = useState(false);
+  const [breakLabel, setBreakLabel] = useState('Break');
+  const [breakDate, setBreakDate] = useState<string>(() => selectedDate || new Date().toISOString().slice(0, 10));
+  const [breakDurationMins, setBreakDurationMins] = useState<number>(20);
+  const [breakEnd, setBreakEnd] = useState<string>(() => formatHHMM(new Date()));
+  const [breakStart, setBreakStart] = useState<string>(() => subtractMinsFromHHMM(formatHHMM(new Date()), 20));
 
   // Trigger red alert chime once when quota reaches 0
   useEffect(() => {
@@ -64,6 +108,39 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
     });
     setShowCelebrationModal(true);
     setTimeout(() => setShowCelebrationModal(false), 4000);
+  };
+
+  const handleToggleManualBreak = () => {
+    playDeskClick();
+    if (!showManualBreak) {
+      const nowStr = formatHHMM(new Date());
+      setBreakDate(selectedDate || new Date().toISOString().slice(0, 10));
+      setBreakLabel('Break');
+      setBreakDurationMins(20);
+      setBreakEnd(nowStr);
+      setBreakStart(subtractMinsFromHHMM(nowStr, 20));
+    }
+    setShowManualBreak((prev) => !prev);
+  };
+
+  const handleConfirmManualBreak = () => {
+    if (!onLogPastBreak) return;
+    const targetDate = breakDate || selectedDate || new Date().toISOString().slice(0, 10);
+    const [y, m, d] = targetDate.split('-').map(Number);
+    const [sH, sM] = breakStart.split(':').map((v) => parseInt(v, 10) || 0);
+    const startDate = new Date(y, m - 1, d, sH, sM, 0, 0);
+    const safeMins = Math.max(1, breakDurationMins);
+    const endDate = new Date(startDate.getTime() + safeMins * 60000);
+
+    playEarnedChime();
+    onLogPastBreak({
+      topic: breakLabel.trim() || 'Break',
+      startTimeIso: startDate.toISOString(),
+      endTimeIso: endDate.toISOString(),
+      durationMinutes: safeMins,
+      assignedDate: targetDate,
+    });
+    setShowManualBreak(false);
   };
 
   const percentageUsed = Math.min(100, Math.max(0, (totalUsedSeconds / BASE_QUOTA_SECONDS) * 100));
@@ -99,17 +176,17 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className={`p-2 rounded-lg border ${isExhausted ? 'bg-red-950/70 border-red-500/40' : 'bg-amber-500/10 border-amber-500/30'}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`p-2 rounded-lg border shrink-0 ${isExhausted ? 'bg-red-950/70 border-red-500/40' : 'bg-amber-500/10 border-amber-500/30'}`}>
               <Coffee className={`w-4 h-4 ${isExhausted ? 'text-red-400' : 'text-amber-400'}`} />
             </div>
-            <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white">
+            <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white truncate">
               2-Hour Break Bank
             </h3>
           </div>
-          <div className="flex items-center gap-2 text-xs font-mono tabular-nums text-zinc-400">
-            <span>{Math.round(totalUsedSeconds / 60)}m / 120m used</span>
+          <div className="flex items-center gap-1.5 text-xs font-mono tabular-nums text-zinc-400 shrink-0">
+            <span className="hidden sm:inline">{Math.round(totalUsedSeconds / 60)}m / 120m</span>
             {onOpenProgress && (
               <button
                 type="button"
@@ -122,6 +199,30 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
                 aria-label="View Break progress graph"
               >
                 <BarChart2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onLogPastBreak && (
+              <button
+                type="button"
+                onClick={handleToggleManualBreak}
+                className={`group interactive-press flex items-center justify-center rounded-lg border transition-all duration-200 ease-out cursor-pointer shrink-0 overflow-hidden ${
+                  showManualBreak
+                    ? 'h-7 px-2.5 bg-amber-400 text-zinc-950 border-amber-300 font-bold'
+                    : 'h-7 px-2 hover:px-2.5 bg-amber-500/15 border-amber-500/35 text-amber-200 hover:border-amber-400 hover:text-white'
+                }`}
+                title="Forgot to start Break timer? Log a past break anytime"
+                aria-label="Log past break session"
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span
+                  className={`text-[11px] font-mono font-semibold whitespace-nowrap overflow-hidden transition-all duration-200 ${
+                    showManualBreak
+                      ? 'max-w-[36px] opacity-100 ml-1'
+                      : 'max-w-0 opacity-0 group-hover:max-w-[36px] group-hover:opacity-100 group-hover:ml-1'
+                  }`}
+                >
+                  Log
+                </span>
               </button>
             )}
           </div>
@@ -167,6 +268,130 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
           />
         </div>
       </div>
+
+      {/* Expandable Manual Break Logger */}
+      {showManualBreak && onLogPastBreak && (
+        <div className="p-3.5 bg-zinc-950/95 border border-amber-500/35 rounded-xl space-y-3 text-xs font-mono animate-in fade-in duration-150 relative">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-amber-200">
+              Log Missed Break
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowManualBreak(false)}
+              className="text-zinc-500 hover:text-zinc-300 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input
+              type="text"
+              value={breakLabel}
+              onChange={(e) => setBreakLabel(e.target.value)}
+              placeholder="Break reason (e.g. Tea, Rest)"
+              className="px-2.5 py-1.5 text-xs font-sans bg-zinc-900 border border-zinc-700 rounded text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400"
+            />
+            <input
+              type="date"
+              value={breakDate}
+              onChange={(e) => e.target.value && setBreakDate(e.target.value)}
+              className="px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-amber-400"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="block label-scandi text-zinc-500 mb-1">Start</label>
+              <input
+                type="time"
+                value={breakStart}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  setBreakStart(v);
+                  setBreakEnd(addMinsToHHMM(v, breakDurationMins));
+                }}
+                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+            <div>
+              <label className="block label-scandi text-zinc-500 mb-1">Minutes</label>
+              <input
+                type="number"
+                min={1}
+                max={480}
+                value={breakDurationMins}
+                onChange={(e) => {
+                  const val = Math.max(1, Math.min(480, parseInt(e.target.value, 10) || 10));
+                  setBreakDurationMins(val);
+                  setBreakEnd(addMinsToHHMM(breakStart, val));
+                }}
+                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+            <div>
+              <label className="block label-scandi text-zinc-500 mb-1">End</label>
+              <input
+                type="time"
+                value={breakEnd}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  setBreakEnd(v);
+                  setBreakDurationMins(diffMinsBetweenHHMM(breakStart, v));
+                }}
+                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 font-semibold focus:outline-none focus:border-amber-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {BREAK_DURATION_CHIPS.map((mins) => (
+              <button
+                key={mins}
+                type="button"
+                onClick={() => {
+                  playDeskClick();
+                  setBreakDurationMins(mins);
+                  setBreakEnd(addMinsToHHMM(breakStart, mins));
+                }}
+                className={`px-2 py-0.5 text-[10px] rounded border cursor-pointer ${
+                  breakDurationMins === mins
+                    ? 'bg-amber-400/20 border-amber-400 text-amber-200 font-bold'
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+                }`}
+              >
+                {mins === 60 ? '1h' : `${mins}m`}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
+            <span className="text-[11px] text-amber-300">
+              {breakStart} → {breakEnd} ({breakDurationMins}m)
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowManualBreak(false)}
+                className="px-2 py-1 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmManualBreak}
+                className="flex items-center gap-1 px-3 py-1 font-semibold text-zinc-950 bg-amber-400 hover:bg-amber-300 rounded cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Save Break</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Controls: Carry-Forward Reserve + Dedicated Break (bon) Button */}
       <div className="pt-3.5 border-t border-zinc-800/80 space-y-3 relative">

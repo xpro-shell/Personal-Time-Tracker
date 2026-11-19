@@ -187,24 +187,49 @@ export const ActivityProgressStudio: React.FC<ActivityProgressStudioProps> = ({
     updatedAt: new Date().toISOString(),
   };
 
+  const pilotName = fallbackProfile.displayName?.trim() || 'Focus Pilot';
+
+  const dayWish = (() => {
+    const h = new Date(liveTickMs).getHours();
+    if (h >= 5 && h < 12) return 'Good Morning';
+    if (h >= 12 && h < 17) return 'Good Afternoon';
+    if (h >= 17 && h < 22) return 'Good Evening';
+    return 'Good Night';
+  })();
+
+  const motivationalLine = (() => {
+    if (todaySnapshot.study >= 360) {
+      return "Daily quota complete — keep sharpening your lead.";
+    }
+    const lines = [
+      "Keep going. You're doing great.",
+      'Every focused block builds unstoppable momentum.',
+      'Stay locked in — consistency beats intensity.',
+      'Protect your deep work today, thank yourself tonight.',
+    ];
+    const dayNum = parseInt(selectedDate.slice(-2), 10) || 0;
+    return lines[dayNum % lines.length];
+  })();
+
   return (
     <div className="space-y-5">
       {/* Main Studio Card */}
       <div className="studio-card p-5 sm:p-6 rounded-2xl bg-[#111216]/95 border border-zinc-800/85 space-y-5 relative">
-        {/* Top Header + Template Bar */}
+        {/* Top Header + Personalized Wish & Template Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-800/80">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 mt-0.5 shrink-0">
               <BarChart3 className="w-5 h-5 text-cyan-400" />
             </div>
             <div>
               <h3 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-white">
-                Activity Progress Studio
+                {dayWish}, {pilotName}!
               </h3>
-              <p className="text-xs font-sans text-zinc-400 mt-0.5 flex flex-wrap items-center gap-1.5">
-                <span>Simple, accurate tracking across hours, weeks, months &amp; years</span>
-                <span aria-hidden="true" className="text-zinc-600">·</span>
-                <span className="font-mono text-zinc-300">{selectedDate}</span>
+              <p className="text-xs sm:text-sm font-sans text-zinc-300 mt-0.5">
+                {motivationalLine}
+              </p>
+              <p className="text-[11px] font-mono text-zinc-400 mt-1.5">
+                {selectedDate}
               </p>
             </div>
           </div>
@@ -471,6 +496,11 @@ export const ActivityProgressStudio: React.FC<ActivityProgressStudioProps> = ({
           onSelectActivity={(actId) => {
             playDeskClick();
             setActivityFilter(actId);
+            setSelectedBucketKey(null);
+          }}
+          onChangeTimeframe={(tf) => {
+            playDeskClick();
+            setTimeframe(tf);
             setSelectedBucketKey(null);
           }}
         />

@@ -8,7 +8,6 @@ import { DateNavigator } from './components/DateNavigator';
 import { DailyCompletionStatus, DayCloseModal } from './components/DayCloseModal';
 import { DeskQuickLogger } from './components/DeskQuickLogger';
 import { HabitCard } from './components/HabitCard';
-import { InsightsTips } from './components/InsightsTips';
 import { IntroAnimation } from './components/IntroAnimation';
 import { LifeShortcodeDrawer } from './components/LifeShortcodeDrawer';
 import { MotivationModal } from './components/MotivationModal';
@@ -47,6 +46,7 @@ import {
   normalizeActiveSession,
   processDailyRollover,
   reassignEntriesToDate,
+  reconcileStudyDebtForDate,
   shiftYmd,
 } from './lib/sessionRollover';
 import {
@@ -328,6 +328,7 @@ export default function App() {
       if (
         saved === 'clean-bars' ||
         saved === 'growth-cards' ||
+        saved === 'studio-matrix' ||
         saved === 'smooth-wave' ||
         saved === 'rings-grid' ||
         saved === 'pulse-blocks'
@@ -1471,6 +1472,70 @@ export default function App() {
     writeLocalData(STORAGE_KEYS.CUSTOM_HABITS, newHabits);
   };
 
+  // Unified Retroactive / Manual Entry Logger for Study, Break, Content, Desk, Sleep, Life, or Habits
+  const handleLogPastEntry = (options: {
+    type: EntryType;
+    topic: string;
+    startTimeIso: string;
+    endTimeIso: string;
+    durationMinutes: number;
+    assignedDate?: string;
+    note?: string;
+    habitId?: string;
+  }) => {
+    const targetDate =
+      options.assignedDate || getEffectiveWriteDate(activeSession, selectedDate, openDeskOriginDate);
+    const now = new Date();
+    const mins = Math.max(1, Math.round(options.durationMinutes));
+
+    const newEntry: TimeEntry = {
+      id: `local_manual_${options.type}_${now.getTime()}_${Math.random().toString(36).slice(2, 6)}`,
+      userId: 'local_desktop_user',
+      type: options.type,
+      action: 'stop',
+      topic: options.topic,
+      ...(options.habitId ? { habitId: options.habitId } : {}),
+      startTime: options.startTimeIso,
+      endTime: options.endTimeIso,
+      durationMinutes: mins,
+      assignedDate: targetDate,
+      ...(options.note ? { note: options.note } : {}),
+      source: 'manual',
+      createdAt: now.toISOString(),
+    };
+
+    const nextEntries = [...entries, newEntry].sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
+    setEntries(nextEntries);
+
+    if (options.type === 'study' || options.type === 'content') {
+      const debtUpdate = reconcileStudyDebtForDate({
+        targetDate,
+        prevEntries: entries,
+        nextEntries,
+        vaultEntries,
+        carriedDates,
+        studyDeficitCarryForwardMinutes,
+      });
+      if (debtUpdate.nextVaultEntries !== vaultEntries) {
+        setVaultEntries(debtUpdate.nextVaultEntries);
+      }
+      if (debtUpdate.nextCarriedDates !== carriedDates) {
+        setCarriedDates(debtUpdate.nextCarriedDates);
+      }
+      if (debtUpdate.nextStudyDeficitCarryForwardMinutes !== studyDeficitCarryForwardMinutes) {
+        setStudyDeficitCarryForwardMinutes(debtUpdate.nextStudyDeficitCarryForwardMinutes);
+      }
+      addXp(Math.min(60, Math.round(mins * 0.5)));
+    } else if (options.type === 'sleep') {
+      addXp(30);
+    } else if (options.type === 'music') {
+      addXp(50);
+    }
+    playEarnedChime();
+  };
+
   // Generic Habit Toggle (respects active session's assignedDate)
   const handleToggleHabit = (
     habit: CustomHabit,
@@ -1478,6 +1543,7 @@ export default function App() {
       startTimeIso?: string;
       endTimeIso?: string;
       durationMinutes?: number;
+      replaceExisting?: boolean;
     }
   ) => {
     const writeDate = getEffectiveWriteDate(activeSession, selectedDate, openDeskOriginDate);
@@ -1494,6 +1560,11 @@ export default function App() {
       return;
     }
 
+    const shouldReplace = !!existing && !!options?.replaceExisting;
+    if (shouldReplace) {
+      addXp(-50);
+    }
+
     const now = new Date();
     const startIso = options?.startTimeIso || now.toISOString();
     const durMins = options?.durationMinutes || Math.round(habit.defaultDurationHours * 60);
@@ -1502,7 +1573,7 @@ export default function App() {
       new Date(new Date(startIso).getTime() + durMins * 60000).toISOString();
 
     const newEntry: TimeEntry = {
-      id: `local_h_${Date.now()}`,
+      id: `local_h_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
       userId: 'local_desktop_user',
       type: habit.entryType,
       action: 'tick',
@@ -1517,7 +1588,7 @@ export default function App() {
     };
 
     setEntries((prev) =>
-      [...prev.filter((e) => e.id !== existing?.id), newEntry].sort(
+      [...(shouldReplace ? prev.filter((e) => e.id !== existing?.id) : prev), newEntry].sort(
         (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
       )
     );
@@ -1665,6 +1736,30 @@ export default function App() {
     const cmd = trimmed.toLowerCase();
     if (!cmd) return;
 
+    const parsePastWindow = (rest: string, defaultTopic: string) => {
+      const m = rest.match(/^(.*?)\s*(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minutes?)?$/i);
+      if (!m) return null;
+      const numVal = parseFloat(m[2]);
+      if (isNaN(numVal) || numVal <= 0) return null;
+      const unit = (m[3] || '').toLowerCase();
+      const durMins = unit.startsWith('m')
+        ? Math.round(numVal)
+        : unit.startsWith('h') || numVal <= 12
+        ? Math.round(numVal * 60)
+        : Math.round(numVal);
+      const now = new Date();
+      const writeDate = getEffectiveWriteDate(activeSession, selectedDate, openDeskOriginDate);
+      const endD = writeDate === formatLocalYMD(now) ? now : new Date(`${writeDate}T20:00:00`);
+      const startD = new Date(endD.getTime() - durMins * 60000);
+      return {
+        topic: m[1].trim() || defaultTopic,
+        durationMinutes: Math.max(1, durMins),
+        startTimeIso: startD.toISOString(),
+        endTimeIso: endD.toISOString(),
+        assignedDate: writeDate,
+      };
+    };
+
     if (cmd === 'pause') {
       handlePauseSession();
     } else if (cmd === 'resume') {
@@ -1688,6 +1783,30 @@ export default function App() {
       handleStartSession('sleep', 'Restorative Sleep');
     } else if (cmd === 'sl off' || cmd === 'sleep off') {
       handleStopSession();
+    } else if (cmd.startsWith('s ') || cmd.startsWith('study ')) {
+      const rest = trimmed.replace(/^(study|s)\s+/i, '').trim();
+      const parsed = parsePastWindow(rest, 'General Study');
+      if (parsed) {
+        handleLogPastEntry({ type: 'study', ...parsed });
+      }
+    } else if (cmd.startsWith('b ') || cmd.startsWith('break ')) {
+      const rest = trimmed.replace(/^(break|b)\s+/i, '').trim();
+      const parsed = parsePastWindow(rest, 'Break');
+      if (parsed) {
+        handleLogPastEntry({ type: 'break', ...parsed });
+      }
+    } else if (cmd.startsWith('c ') || cmd.startsWith('content ')) {
+      const rest = trimmed.replace(/^(content|c)\s+/i, '').trim();
+      const parsed = parsePastWindow(rest, 'Content Creation');
+      if (parsed) {
+        handleLogPastEntry({ type: 'content', ...parsed });
+      }
+    } else if (cmd.startsWith('desk ')) {
+      const rest = trimmed.replace(/^desk\s+/i, '').trim();
+      const parsed = parsePastWindow(rest, 'Active Desk Time');
+      if (parsed) {
+        handleLogPastEntry({ type: 'desk', ...parsed });
+      }
     } else if (cmd.startsWith('sleep') || cmd.startsWith('sl ')) {
       const parts = cmd.split(/\s+/);
       const parsedH = parts.length > 1 ? parseFloat(parts[1]) : 8;
@@ -2006,11 +2125,13 @@ export default function App() {
                   studyDeficitCarryForwardMinutes={studyDeficitCarryForwardMinutes}
                   currentStreak={profile.currentStreak || 1}
                   level={profile.level || 1}
+                  selectedDate={selectedDate}
                   onStartStudy={(topic) => handleStartSession('study', topic)}
                   onPauseSession={handlePauseSession}
                   onResumeSession={handleResumeSession}
                   onStopSession={handleStopSession}
                   onShortcodeSubmit={handleShortcodeCommand}
+                  onLogPastStudy={(opts) => handleLogPastEntry(opts)}
                   onOpenProgress={() => setProgressModalActivity('study')}
                 />
               </section>
@@ -2029,10 +2150,17 @@ export default function App() {
                   isSessionPaused={!!activeSession?.isPaused}
                   activeBreakDurationSeconds={activeSession?.type === 'break' ? activeSeconds : 0}
                   bankedCarryForwardMinutes={bankedCarryForwardMinutes}
+                  selectedDate={selectedDate}
                   onStartBreak={() => handleStartSession('break', 'Break')}
                   onPauseSession={handlePauseSession}
                   onResumeSession={handleResumeSession}
                   onStopBreak={handleStopSession}
+                  onLogPastBreak={(opts) =>
+                    handleLogPastEntry({
+                      type: 'break',
+                      ...opts,
+                    })
+                  }
                   onOpenProgress={() => setProgressModalActivity('break')}
                 />
               </section>
@@ -2125,17 +2253,6 @@ export default function App() {
                 achievementsCount={achievements.length}
                 profile={profile}
               />
-            </section>
-
-            {/* Step 07: Study Science & Insights */}
-            <section id="section-insights" className="scroll-mt-28 space-y-3 pt-2">
-              <div className="flex items-baseline gap-2.5 pb-2.5 border-b border-emerald-500/25">
-                <span className="text-sm font-mono font-bold text-emerald-400">07.</span>
-                <h2 className="font-display text-2xl sm:text-[1.7rem] font-bold tracking-tight text-emerald-50">
-                  Accountability &amp; Focus Principles
-                </h2>
-              </div>
-              <InsightsTips entries={entries} />
             </section>
           </div>
         )}

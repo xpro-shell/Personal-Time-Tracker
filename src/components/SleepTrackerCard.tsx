@@ -210,10 +210,24 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
                 playDeskClick();
                 setShowSleepModal((prev) => !prev);
               }}
-              className="interactive-press flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium rounded-md bg-indigo-500/15 border border-indigo-500/35 text-indigo-200 hover:border-indigo-400 hover:text-white transition-all cursor-pointer"
+              className={`group interactive-press flex items-center justify-center rounded-lg border transition-all duration-200 ease-out cursor-pointer shrink-0 overflow-hidden ${
+                showSleepModal
+                  ? 'h-7 px-2.5 bg-indigo-400 text-zinc-950 border-indigo-300 font-bold'
+                  : 'h-7 px-2 hover:px-2.5 bg-indigo-500/15 border-indigo-500/35 text-indigo-200 hover:border-indigo-400 hover:text-white'
+              }`}
+              title="Log sleep or nap window anytime"
+              aria-label="Log sleep window"
             >
-              <Clock className="w-3 h-3 text-indigo-300" />
-              <span>Log Sleep</span>
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              <span
+                className={`text-[11px] font-mono font-semibold whitespace-nowrap overflow-hidden transition-all duration-200 ${
+                  showSleepModal
+                    ? 'max-w-[36px] opacity-100 ml-1'
+                    : 'max-w-0 opacity-0 group-hover:max-w-[36px] group-hover:opacity-100 group-hover:ml-1'
+                }`}
+              >
+                Log
+              </span>
             </button>
           </div>
         </div>

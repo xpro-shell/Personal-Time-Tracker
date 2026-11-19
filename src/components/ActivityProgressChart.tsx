@@ -1,4 +1,15 @@
-import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  CalendarDays,
+  ChevronRight,
+  Lightbulb,
+  Minus,
+  TrendingDown,
+  TrendingUp,
+  Trophy,
+} from 'lucide-react';
 import React from 'react';
 import {
   ActivityFilterId,
@@ -18,6 +29,7 @@ interface ActivityProgressChartProps {
   selectedBucketKey: string | null;
   onSelectBucket: (bucket: ProgressBucket) => void;
   onSelectActivity?: (activityId: ActivityFilterId) => void;
+  onChangeTimeframe?: (tf: ProgressTimeframe) => void;
   compact?: boolean;
 }
 
@@ -35,6 +47,11 @@ export const PROGRESS_TEMPLATES: Array<{
     id: 'growth-cards',
     name: 'Growth Cards',
     tagline: 'Premium cards showing % completion & growth vs yesterday',
+  },
+  {
+    id: 'studio-matrix',
+    name: 'Studio Matrix',
+    tagline: 'Activity KPIs, colored matrix grid, detailed bars & insights',
   },
   {
     id: 'smooth-wave',
@@ -112,9 +129,11 @@ export const ActivityProgressChart: React.FC<ActivityProgressChartProps> = ({
   selectedBucketKey,
   onSelectBucket,
   onSelectActivity,
+  onChangeTimeframe,
   compact = false,
 }) => {
-  const { activity, buckets, maxBucketMinutes, yesterdayComparison, activityCards } = series;
+  const { activity, buckets, maxBucketMinutes, yesterdayComparison, activityCards, activityMatrix } =
+    series;
   const targetRefMins = buckets[0]?.targetMinutes || 60;
   const chartCeilingMins = Math.max(
     targetRefMins,
@@ -852,6 +871,378 @@ export const ActivityProgressChart: React.FC<ActivityProgressChartProps> = ({
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* TEMPLATE 6: STUDIO MATRIX (Overview Cards + Colored Activity Matrix + Detailed Bars + Insights) */}
+      {template === 'studio-matrix' && (
+        <div className="space-y-4">
+          {/* 1. Top Activity Summary Cards */}
+          {activityCards.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              {activityCards.map((card) => {
+                const isSelectedAct = activity.id === card.activity.id;
+                return (
+                  <button
+                    key={card.activity.id}
+                    type="button"
+                    onClick={() =>
+                      onSelectActivity?.(
+                        isSelectedAct ? 'all' : card.activity.id
+                      )
+                    }
+                    className={`group text-left p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col justify-between gap-2.5 ${
+                      isSelectedAct
+                        ? 'bg-[#12161f] border-zinc-500 shadow-[0_6px_20px_-10px_rgba(0,0,0,0.9)]'
+                        : 'bg-[#0c0e13] border-zinc-800/85 hover:border-zinc-700'
+                    }`}
+                    title={`Click to focus ${card.activity.label}`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{
+                            backgroundColor: card.activity.colorHex,
+                            boxShadow: `0 0 8px ${card.activity.colorHex}75`,
+                          }}
+                        />
+                        <span className="text-xs font-medium text-zinc-200 group-hover:text-white truncate">
+                          {card.activity.label}
+                        </span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-300 shrink-0 transition-colors" />
+                    </div>
+
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xl font-bold font-mono text-white tabular-nums">
+                        {card.pct}%
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-400 tabular-nums text-right">
+                        {timeframe === 'hours'
+                          ? `${formatMinutesHm(card.currentMinutes)}`
+                          : `${card.daysHit} / ${card.totalDays} days`}
+                      </span>
+                    </div>
+
+                    <div className="w-full h-1.5 rounded-full bg-zinc-900 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${card.pct > 0 ? Math.max(5, card.pct) : 0}%`,
+                          background: `linear-gradient(90deg, ${card.activity.colorHex}bb, ${card.activity.colorHex})`,
+                          boxShadow:
+                            card.pct > 0 ? `0 0 10px ${card.activity.colorHex}66` : undefined,
+                        }}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 2. Middle Activity Consistency Matrix */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#0c0e13] border border-zinc-800/90 space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-zinc-300" />
+                <span className="text-sm font-semibold text-white">Activity Matrix</span>
+                <span aria-hidden="true" className="text-zinc-700">·</span>
+                <span className="text-xs font-mono text-zinc-400">
+                  {activityMatrix.scopeLabel}
+                </span>
+              </div>
+
+              {onChangeTimeframe && (
+                <div className="flex items-center gap-1 p-0.5 bg-zinc-950 border border-zinc-800 rounded-lg text-[11px]">
+                  {(
+                    [
+                      { id: 'hours', label: '24h' },
+                      { id: 'week', label: 'Week' },
+                      { id: 'months', label: 'Month' },
+                      { id: 'years', label: 'Year' },
+                    ] as const
+                  ).map((opt) => {
+                    const isActive = timeframe === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => onChangeTimeframe(opt.id)}
+                        className={`px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer whitespace-nowrap ${
+                          isActive
+                            ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-sm'
+                            : 'text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="overflow-x-auto scrollbar-none pb-1">
+              <div className="min-w-[620px] space-y-2">
+                {/* Column Header Row */}
+                <div className="flex items-center gap-3">
+                  <div className="w-36 sm:w-44 shrink-0" />
+                  <div
+                    className="flex-1 grid gap-1"
+                    style={{
+                      gridTemplateColumns: `repeat(${activityMatrix.columns.length}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {activityMatrix.columns.map((col, idx) => (
+                      <div
+                        key={col.key}
+                        className={`text-center text-[10px] font-mono tabular-nums ${
+                          col.isCurrent ? 'text-white font-bold' : 'text-zinc-500'
+                        }`}
+                        title={col.subLabel}
+                      >
+                        {activityMatrix.columns.length >= 24 && timeframe === 'hours'
+                          ? idx % 2 === 0
+                            ? col.label
+                            : ''
+                          : col.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Activity Rows */}
+                {activityMatrix.rows.map((row) => {
+                  const isFocused = activity.id === row.activity.id;
+                  const dimmed = activity.id !== 'all' && !isFocused;
+                  return (
+                    <div
+                      key={row.activity.id}
+                      className={`flex items-center gap-3 transition-opacity duration-150 ${
+                        dimmed ? 'opacity-45 hover:opacity-90' : 'opacity-100'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onSelectActivity?.(isFocused ? 'all' : row.activity.id)
+                        }
+                        className="w-36 sm:w-44 shrink-0 flex items-center gap-2 text-left cursor-pointer group min-w-0"
+                        title={`Filter to ${row.activity.label} (${formatMinutesHm(row.totalMinutes)})`}
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: row.activity.colorHex }}
+                        />
+                        <span
+                          className={`text-xs truncate transition-colors ${
+                            isFocused
+                              ? 'text-white font-semibold'
+                              : 'text-zinc-300 group-hover:text-white'
+                          }`}
+                        >
+                          {row.activity.label}
+                        </span>
+                      </button>
+
+                      <div
+                        className="flex-1 grid gap-1"
+                        style={{
+                          gridTemplateColumns: `repeat(${activityMatrix.columns.length}, minmax(0, 1fr))`,
+                        }}
+                      >
+                        {row.cells.map((cell, cIdx) => {
+                          const colMeta = activityMatrix.columns[cIdx];
+                          const bgStyle =
+                            cell.intensity === 0
+                              ? '#16181f'
+                              : cell.intensity === 1
+                              ? `${row.activity.colorHex}33`
+                              : cell.intensity === 2
+                              ? `${row.activity.colorHex}66`
+                              : cell.intensity === 3
+                              ? `${row.activity.colorHex}b3`
+                              : row.activity.colorHex;
+                          return (
+                            <div
+                              key={cell.key}
+                              className={`h-5 sm:h-6 rounded-[5px] border transition-transform duration-150 hover:scale-110 ${
+                                colMeta?.isCurrent
+                                  ? 'border-zinc-500/70'
+                                  : 'border-zinc-800/60'
+                              }`}
+                              style={{
+                                backgroundColor: bgStyle,
+                                boxShadow:
+                                  cell.intensity >= 3
+                                    ? `0 0 10px -3px ${row.activity.colorHex}80`
+                                    : undefined,
+                              }}
+                              title={`${row.activity.label} · ${colMeta?.subLabel || colMeta?.label}: ${formatMinutesHm(cell.minutes)} (${cell.pct}%)`}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Bottom Split: Detailed Progress Bars + Live Insights */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+            {/* Left: Detailed Progress */}
+            <div className="lg:col-span-8 p-4 sm:p-5 rounded-2xl bg-[#0c0e13] border border-zinc-800/90 space-y-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-zinc-300" />
+                  <span className="text-sm font-semibold text-white">Detailed Progress</span>
+                </div>
+                <span className="text-[11px] font-mono text-zinc-500">
+                  {timeframe === 'hours' ? 'Today vs target' : 'Consistency & volume'}
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {activityCards.map((card) => {
+                  const isFocused = activity.id === card.activity.id;
+                  return (
+                    <button
+                      key={card.activity.id}
+                      type="button"
+                      onClick={() =>
+                        onSelectActivity?.(isFocused ? 'all' : card.activity.id)
+                      }
+                      className="w-full flex items-center gap-3 text-left group cursor-pointer"
+                      title={`${card.activity.label}: ${formatMinutesHm(card.currentMinutes)} logged`}
+                    >
+                      <div className="w-36 sm:w-44 shrink-0 flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: card.activity.colorHex }}
+                        />
+                        <span
+                          className={`text-xs truncate transition-colors ${
+                            isFocused
+                              ? 'text-white font-semibold'
+                              : 'text-zinc-300 group-hover:text-white'
+                          }`}
+                        >
+                          {card.activity.label}
+                        </span>
+                      </div>
+
+                      <div className="flex-1 h-2.5 rounded-full bg-zinc-900/95 border border-zinc-800/70 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${card.pct > 0 ? Math.max(3, card.pct) : 0}%`,
+                            background: `linear-gradient(90deg, ${card.activity.colorHex}bb, ${card.activity.colorHex})`,
+                          }}
+                        />
+                      </div>
+
+                      <span className="w-11 text-right font-mono text-xs font-bold text-white tabular-nums shrink-0">
+                        {card.pct}%
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right: Insights & Top Activity */}
+            {(() => {
+              const sortedByPerf = [...activityCards].sort((a, b) => {
+                if (b.pct !== a.pct) return b.pct - a.pct;
+                return b.currentMinutes - a.currentMinutes;
+              });
+              const topCard = sortedByPerf.find((c) => c.currentMinutes > 0) || sortedByPerf[0];
+              const cmp = activityMatrix.periodComparison;
+              const absCmp = Math.abs(cmp.pctChange);
+
+              return (
+                <div className="lg:col-span-4 p-4 sm:p-5 rounded-2xl bg-[#0c0e13] border border-zinc-800/90 flex flex-col justify-between gap-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Lightbulb className="w-4 h-4 text-zinc-300" />
+                      <span className="text-sm font-semibold text-white">Insights</span>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 shrink-0 mt-0.5">
+                        {cmp.direction === 'up' ? (
+                          <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        ) : cmp.direction === 'down' ? (
+                          <TrendingDown className="w-4 h-4 text-rose-400" />
+                        ) : (
+                          <Minus className="w-4 h-4 text-zinc-400" />
+                        )}
+                      </div>
+                      <div className="space-y-0.5 text-xs">
+                        <div className="font-semibold text-white">
+                          {cmp.direction === 'up'
+                            ? "You're on track!"
+                            : cmp.direction === 'down'
+                            ? 'Pace dipped slightly'
+                            : 'Steady consistency'}
+                        </div>
+                        <p className="text-zinc-400 font-sans leading-relaxed">
+                          {cmp.direction === 'flat' ? (
+                            <>
+                              Your activity matches{' '}
+                              <span className="text-zinc-200 font-medium">{cmp.label}</span>.
+                            </>
+                          ) : (
+                            <>
+                              Your output is{' '}
+                              <span
+                                className={`font-mono font-semibold ${
+                                  cmp.direction === 'up' ? 'text-emerald-300' : 'text-rose-300'
+                                }`}
+                              >
+                                {cmp.direction === 'up' ? `+${absCmp}% higher` : `${absCmp}% lower`}
+                              </span>{' '}
+                              than {cmp.label}.
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {topCard && (
+                    <div className="pt-3.5 border-t border-zinc-800/80 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 shrink-0">
+                          <Trophy className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="label-scandi text-zinc-400 block">Top Activity</span>
+                          <span className="text-xs font-semibold text-white truncate block">
+                            {topCard.activity.label}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className="font-mono text-sm font-bold tabular-nums px-2.5 py-1 rounded-lg border shrink-0"
+                        style={{
+                          color: topCard.activity.colorHex,
+                          borderColor: `${topCard.activity.colorHex}55`,
+                          backgroundColor: `${topCard.activity.colorHex}18`,
+                        }}
+                      >
+                        {topCard.pct}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
     </div>

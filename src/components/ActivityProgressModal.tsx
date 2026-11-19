@@ -211,6 +211,11 @@ export const ActivityProgressModal: React.FC<ActivityProgressModalProps> = ({
             template={template}
             selectedBucketKey={selectedBucketKey}
             onSelectBucket={(b) => setSelectedBucketKey(b.key)}
+            onChangeTimeframe={(tf) => {
+              playDeskClick();
+              setTimeframe(tf);
+              setSelectedBucketKey(null);
+            }}
             compact
           />
         </div>
