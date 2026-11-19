@@ -166,4 +166,3 @@ export function playDeskLogoutBeep() {
     osc.stop(start + 0.38);
   });
 }
-

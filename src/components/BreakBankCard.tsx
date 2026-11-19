@@ -301,7 +301,7 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label className="block label-scandi text-zinc-500 mb-1">Start</label>
               <input
@@ -313,22 +313,7 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
                   setBreakStart(v);
                   setBreakEnd(addMinsToHHMM(v, breakDurationMins));
                 }}
-                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-amber-400"
-              />
-            </div>
-            <div>
-              <label className="block label-scandi text-zinc-500 mb-1">Minutes</label>
-              <input
-                type="number"
-                min={1}
-                max={480}
-                value={breakDurationMins}
-                onChange={(e) => {
-                  const val = Math.max(1, Math.min(480, parseInt(e.target.value, 10) || 10));
-                  setBreakDurationMins(val);
-                  setBreakEnd(addMinsToHHMM(breakStart, val));
-                }}
-                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-amber-400"
+                className="w-full px-2.5 py-1.5 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-amber-400"
               />
             </div>
             <div>
@@ -342,9 +327,25 @@ export const BreakBankCard: React.FC<BreakBankCardProps> = ({
                   setBreakEnd(v);
                   setBreakDurationMins(diffMinsBetweenHHMM(breakStart, v));
                 }}
-                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 font-semibold focus:outline-none focus:border-amber-400"
+                className="w-full px-2.5 py-1.5 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 font-semibold focus:outline-none focus:border-amber-400"
               />
             </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <label className="label-scandi text-zinc-500 shrink-0">Duration (Minutes)</label>
+            <input
+              type="number"
+              min={1}
+              max={480}
+              value={breakDurationMins}
+              onChange={(e) => {
+                const val = Math.max(1, Math.min(480, parseInt(e.target.value, 10) || 10));
+                setBreakDurationMins(val);
+                setBreakEnd(addMinsToHHMM(breakStart, val));
+              }}
+              className="w-24 px-2.5 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-amber-400 text-right"
+            />
           </div>
 
           <div className="flex flex-wrap gap-1.5">

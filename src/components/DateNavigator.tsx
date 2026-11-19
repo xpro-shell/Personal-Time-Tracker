@@ -59,7 +59,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
   const yesterdayShortLabel = `Yesterday (${shortDayNames[yesterdayObj.getDay()]} ${yesterdayObj.getDate()} ${monthNames[yesterdayObj.getMonth()]})`;
 
   return (
-    <div className="p-3.5 rounded-2xl bg-[#121215] border border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+    <div className="cosmic-surface p-3.5 rounded-2xl bg-[#121215] border border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono transition-colors duration-500">
       {/* Date Title & Navigation Controls */}
       <div className="flex items-center gap-2">
         <button

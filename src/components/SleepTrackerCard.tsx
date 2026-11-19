@@ -163,22 +163,22 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
 
       <div className="relative">
         {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 shrink-0">
               <Moon className="w-4 h-4 text-indigo-400" />
             </div>
-            <div>
-              <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white">
+            <div className="min-w-0">
+              <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white truncate">
                 Restorative Sleep
               </h3>
-              <span className="label-scandi text-indigo-300/75 block mt-0.5">
+              <span className="label-scandi text-indigo-300/75 block mt-0.5 truncate">
                 Anytime Sleep & Nap Logger
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {todaySleepEntry && onUndoSleep && (
               <button
                 type="button"
@@ -281,8 +281,132 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
         </div>
       </div>
 
+      {/* Expandable Sleep Log Modal (placed cleanly above footer to avoid control jump/overlap) */}
+      {showSleepModal && (
+        <div className="mt-3 p-3.5 bg-zinc-950/95 border border-indigo-500/35 rounded-xl space-y-3 text-xs font-mono relative z-10">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-semibold text-indigo-200 truncate">
+              Log Sleep Window ({selectedDate})
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowSleepModal(false)}
+              className="text-zinc-500 hover:text-zinc-300 cursor-pointer shrink-0"
+              aria-label="Close sleep logger"
+            >
+              ✕
+            </button>
+          </div>
+
+          <p className="text-[11px] font-sans text-zinc-400 leading-relaxed">
+            Log any sleep or nap window (e.g. 01:00 → 10:00, 23:00 → 07:00, or daytime rest) on {selectedDate}.
+          </p>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="block label-scandi text-zinc-500 mb-1">Bedtime</label>
+              <input
+                type="time"
+                value={sleepStart}
+                onChange={(e) => handleStartChange(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-indigo-400"
+              />
+            </div>
+            <div>
+              <label className="block label-scandi text-zinc-500 mb-1">Wake Up</label>
+              <input
+                type="time"
+                value={sleepEnd}
+                onChange={(e) => handleEndChange(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 font-semibold focus:outline-none focus:border-indigo-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <label className="label-scandi text-zinc-500 shrink-0">Duration (Hours)</label>
+            <input
+              type="number"
+              step="0.5"
+              min="0.5"
+              max="16"
+              value={sleepDurationHours}
+              onChange={(e) => handleDurationChange(parseFloat(e.target.value) || 1)}
+              className="w-24 px-2.5 py-1 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-indigo-400 text-right"
+            />
+          </div>
+
+          {/* Quick Presets */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[10px]">
+            <span className="text-zinc-500">Presets:</span>
+            <button
+              type="button"
+              onClick={() => handleApplyPreset('01:00', 9)}
+              className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+            >
+              01:00 → 10:00 (9h)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplyPreset('23:00', 8)}
+              className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+            >
+              23:00 → 07:00 (8h)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplyPreset('00:00', 7.5)}
+              className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+            >
+              00:00 → 07:30 (7.5h)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplyPreset('14:00', 1.5)}
+              className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+            >
+              14:00 → 15:30 (Nap)
+            </button>
+          </div>
+
+          {todaySleepEntry && (
+            <label className="flex items-center gap-2 text-[11px] font-sans text-zinc-300 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={replaceExisting}
+                onChange={(e) => setReplaceExisting(e.target.checked)}
+                className="accent-indigo-400 rounded cursor-pointer"
+              />
+              <span>Replace existing sleep log instead of adding another window</span>
+            </label>
+          )}
+
+          <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
+            <span className="text-indigo-300 text-[11px]">
+              {sleepStart} → {sleepEnd} ({sleepDurationHours}h Sleep)
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSleepModal(false)}
+                className="px-2.5 py-1 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSleep}
+                className="px-3.5 py-1 font-semibold text-zinc-950 bg-indigo-400 hover:bg-indigo-300 rounded shadow-sm transition-colors cursor-pointer"
+              >
+                Save Sleep
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer Info / Live Sleep Toggle + Pause/Resume */}
-      <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2 text-xs font-mono text-zinc-400 relative">
+      <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2 text-xs font-mono text-zinc-400 relative">
         <span className="text-[11px] text-zinc-400">
           {hoursSlept >= targetHours ? (
             <span className="text-indigo-300 flex items-center gap-1 font-semibold">
@@ -347,128 +471,6 @@ export const SleepTrackerCard: React.FC<SleepTrackerCardProps> = ({
           </button>
         )}
       </div>
-
-      {/* Expandable Sleep Log Modal */}
-      {showSleepModal && (
-        <div className="mt-3 p-3.5 bg-zinc-950 border border-zinc-800 rounded-lg space-y-3 animate-in fade-in duration-150 text-xs font-mono">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-zinc-100">
-              Log Sleep Window ({selectedDate})
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowSleepModal(false)}
-              className="text-zinc-500 hover:text-zinc-300 cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-
-          <p className="text-[11px] font-sans text-zinc-400">
-            Log any sleep or nap window (e.g. 01:00 → 10:00, 23:00 → 07:00, or daytime rest) on {selectedDate}.
-          </p>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="block label-scandi text-zinc-500 mb-1">Bedtime</label>
-              <input
-                type="time"
-                value={sleepStart}
-                onChange={(e) => handleStartChange(e.target.value)}
-                className="w-full px-2 py-1 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
-              />
-            </div>
-            <div>
-              <label className="block label-scandi text-zinc-500 mb-1">Hours</label>
-              <input
-                type="number"
-                step="0.5"
-                min="0.5"
-                max="16"
-                value={sleepDurationHours}
-                onChange={(e) => handleDurationChange(parseFloat(e.target.value) || 1)}
-                className="w-full px-2 py-1 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
-              />
-            </div>
-            <div>
-              <label className="block label-scandi text-zinc-500 mb-1">Wake Up</label>
-              <input
-                type="time"
-                value={sleepEnd}
-                onChange={(e) => handleEndChange(e.target.value)}
-                className="w-full px-2 py-1 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded text-zinc-100 font-semibold focus:outline-none focus:border-emerald-400"
-              />
-            </div>
-          </div>
-
-          {/* Quick Presets */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[10px]">
-            <span className="text-zinc-500">Presets:</span>
-            <button
-              type="button"
-              onClick={() => handleApplyPreset('01:00', 9)}
-              className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
-            >
-              01:00 → 10:00 (9h)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleApplyPreset('23:00', 8)}
-              className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
-            >
-              23:00 → 07:00 (8h)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleApplyPreset('00:00', 7.5)}
-              className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
-            >
-              00:00 → 07:30 (7.5h)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleApplyPreset('14:00', 1.5)}
-              className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
-            >
-              14:00 → 15:30 (Nap)
-            </button>
-          </div>
-
-          {todaySleepEntry && (
-            <label className="flex items-center gap-2 text-[11px] font-sans text-zinc-300 cursor-pointer pt-1">
-              <input
-                type="checkbox"
-                checked={replaceExisting}
-                onChange={(e) => setReplaceExisting(e.target.checked)}
-                className="accent-indigo-400 rounded cursor-pointer"
-              />
-              <span>Replace existing sleep log instead of adding another window</span>
-            </label>
-          )}
-
-          <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
-            <span className="text-emerald-400 text-[11px]">
-              {sleepStart} → {sleepEnd} ({sleepDurationHours}h Sleep)
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowSleepModal(false)}
-                className="px-2.5 py-1 text-zinc-400 hover:text-zinc-200 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmSleep}
-                className="px-3.5 py-1 font-semibold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded shadow-sm transition-colors cursor-pointer"
-              >
-                Save Sleep
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

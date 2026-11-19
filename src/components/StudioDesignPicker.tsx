@@ -13,6 +13,13 @@ export interface StudioTextStyleDefinition {
 
 export const STUDIO_TEXT_STYLES: StudioTextStyleDefinition[] = [
   {
+    id: 'observatory',
+    name: 'Observatory Sans',
+    vibe: 'System Clean + Mono',
+    category: 'classic',
+    previewFont: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+  },
+  {
     id: 'minimal',
     name: 'Neo-Minimal',
     vibe: 'Playfair + Jakarta',
@@ -102,6 +109,7 @@ export const THEME_DEFAULT_TEXT_STYLE: Record<StudioThemeId, Exclude<StudioTextS
   solar: 'neopop',
   royal: 'royal',
   synth: 'orbit',
+  cosmic: 'observatory',
 };
 
 interface StudioThemeDefinition {
@@ -227,6 +235,20 @@ export const STUDIO_THEMES: StudioThemeDefinition[] = [
     accentText: 'text-yellow-300',
     pairedTextStyle: 'neopop',
   },
+  {
+    id: 'cosmic',
+    name: 'COSMIC — Beyond Time',
+    personality: 'Deep Space Observatory',
+    description: 'A personal productivity universe with 3D black hole hero & orbital timer.',
+    dotClass: 'bg-violet-400 shadow-[0_0_12px_#a78bfa]',
+    previewBg: '#03040a',
+    previewStyle: {
+      backgroundImage:
+        'radial-gradient(circle at 65% 45%, rgba(139, 92, 246, 0.42), transparent 55%), radial-gradient(circle at 25% 75%, rgba(34, 211, 238, 0.28), transparent 55%)',
+    },
+    accentText: 'text-violet-300',
+    pairedTextStyle: 'observatory',
+  },
 ];
 
 interface StudioDesignPickerProps {
@@ -321,9 +343,100 @@ export const StudioDesignPicker: React.FC<StudioDesignPickerProps> = ({
             </div>
           </div>
 
+          {/* Featured COSMIC — Beyond Time Observatory Preview + Use Template */}
+          <div
+            className={`relative overflow-hidden rounded-xl border p-3.5 transition-all duration-300 ${
+              currentTheme === 'cosmic'
+                ? 'border-violet-400/75 bg-[#050816] shadow-[0_0_28px_-8px_rgba(139,92,246,0.55)]'
+                : 'border-violet-500/35 bg-[#040610] hover:border-violet-400/60'
+            }`}
+          >
+            {/* Visual Space + Mini 3D Black Hole Preview */}
+            <div
+              className="relative h-24 w-full rounded-lg border border-indigo-500/20 overflow-hidden mb-3 flex items-center justify-between px-3.5"
+              style={{
+                background:
+                  'radial-gradient(circle at 74% 50%, rgba(139, 92, 246, 0.24), transparent 52%), radial-gradient(circle at 22% 28%, rgba(56, 189, 248, 0.14), transparent 55%), linear-gradient(135deg, #03040a 0%, #070b1d 55%, #0c071b 100%)',
+              }}
+            >
+              {/* Tiny Fine Stars */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 opacity-75"
+                style={{
+                  backgroundImage:
+                    'radial-gradient(1px 1px at 14% 22%, #e0e7ff, transparent), radial-gradient(1px 1px at 28% 72%, #c4b5fd, transparent), radial-gradient(1.2px 1.2px at 44% 18%, #ffffff, transparent), radial-gradient(1px 1px at 56% 80%, #a5f3fc, transparent), radial-gradient(1px 1px at 88% 24%, #ffffff, transparent), radial-gradient(1px 1px at 92% 78%, #ddd6fe, transparent)',
+                }}
+              />
+              <div className="relative z-10 space-y-1 max-w-[60%]">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-300">
+                  Featured Observatory Experience
+                </div>
+                <div className="text-sm font-bold text-white leading-tight">
+                  Your Universe. Your Time.
+                </div>
+                <div className="text-[10px] font-sans text-slate-300/90 truncate">
+                  Every moment creates your next chapter.
+                </div>
+              </div>
+
+              {/* Miniature 3D Black Hole Preview */}
+              <div className="relative z-10 w-20 h-20 shrink-0 flex items-center justify-center" aria-hidden="true">
+                <div
+                  className="absolute inset-0 rounded-full blur-md opacity-70"
+                  style={{
+                    background:
+                      'radial-gradient(circle, rgba(139,92,246,0.5) 28%, rgba(56,189,248,0.22) 60%, transparent 75%)',
+                  }}
+                />
+                <div
+                  className="absolute w-16 h-5 rounded-full border border-violet-300/55 -rotate-12"
+                  style={{
+                    boxShadow: '0 0 12px rgba(139, 92, 246, 0.45), inset 0 0 8px rgba(34, 211, 238, 0.3)',
+                  }}
+                />
+                <div
+                  className="relative w-8 h-8 rounded-full bg-black border border-cyan-300/60"
+                  style={{
+                    boxShadow: '0 0 14px rgba(139, 92, 246, 0.65)',
+                  }}
+                />
+                <div className="absolute w-14 h-4 rounded-full border-b-2 border-indigo-200/75 -rotate-12" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-violet-300 shrink-0" />
+                  <h5 className="text-xs font-bold text-white truncate">
+                    COSMIC — Beyond Time
+                  </h5>
+                </div>
+                <p className="text-[11px] text-slate-300/90 leading-snug mt-0.5">
+                  A personal productivity universe. Track every moment, explore your progress and build your future.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectTheme('cosmic');
+                  setIsOpen(false);
+                }}
+                className={`interactive-press px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer shrink-0 ${
+                  currentTheme === 'cosmic'
+                    ? 'bg-violet-500/25 border-violet-300/75 text-violet-100'
+                    : 'bg-violet-500 hover:bg-violet-400 border-violet-300 text-zinc-950 font-bold shadow-[0_0_16px_-4px_rgba(167,139,250,0.75)]'
+                }`}
+              >
+                {currentTheme === 'cosmic' ? 'Active' : 'Use Template'}
+              </button>
+            </div>
+          </div>
+
           {/* 1. Studio Color + Background + Paired Typography Designs */}
           <div className="grid grid-cols-1 gap-2">
-            {STUDIO_THEMES.map((theme) => {
+            {STUDIO_THEMES.filter((t) => t.id !== 'cosmic').map((theme) => {
               const isSelected = currentTheme === theme.id;
               const pairedText = STUDIO_TEXT_STYLES.find((s) => s.id === theme.pairedTextStyle);
               return (

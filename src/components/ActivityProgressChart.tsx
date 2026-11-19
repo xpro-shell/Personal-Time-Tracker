@@ -31,6 +31,7 @@ interface ActivityProgressChartProps {
   onSelectActivity?: (activityId: ActivityFilterId) => void;
   onChangeTimeframe?: (tf: ProgressTimeframe) => void;
   compact?: boolean;
+  isCosmicTheme?: boolean;
 }
 
 export const PROGRESS_TEMPLATES: Array<{
@@ -115,7 +116,7 @@ const GrowthDeltaInline: React.FC<{
     );
   }
   return (
-    <span className="inline-flex items-center gap-0.5 font-mono text-xs font-medium tabular-nums text-zinc-500">
+    <span className="inline-flex items-center gap-0.5 font-mono text-xs font-medium tabular-nums text-zinc-200">
       <Minus className="w-3 h-3 shrink-0" />
       <span>0%</span>
     </span>
@@ -131,6 +132,7 @@ export const ActivityProgressChart: React.FC<ActivityProgressChartProps> = ({
   onSelectActivity,
   onChangeTimeframe,
   compact = false,
+  isCosmicTheme = false,
 }) => {
   const { activity, buckets, maxBucketMinutes, yesterdayComparison, activityCards, activityMatrix } =
     series;
@@ -196,24 +198,30 @@ export const ActivityProgressChart: React.FC<ActivityProgressChartProps> = ({
     <div className="space-y-4">
       {/* Shared Premium Context + Yesterday Growth / Degrowth Strip across ALL Graphs */}
       {activeBucket && (
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#0c0e13] border border-zinc-800/85 text-xs shadow-inner shadow-black/30">
+        <div
+          className={`flex flex-wrap items-center justify-between gap-2.5 px-4 py-3 rounded-xl border text-xs backdrop-blur-md transition-colors ${
+            isCosmicTheme
+              ? 'bg-[#060916]/60 border-violet-400/25 shadow-[0_0_28px_-12px_rgba(139,92,246,0.28)]'
+              : 'bg-[#0b0e16]/85 border-zinc-700/75 shadow-inner shadow-black/30'
+          }`}
+        >
           <div className="flex flex-wrap items-center gap-2 min-w-0">
             <span
               className="w-2.5 h-2.5 rounded-full shrink-0"
               style={{
                 backgroundColor: activity.colorHex,
-                boxShadow: `0 0 8px ${activity.colorHex}80`,
+                boxShadow: `0 0 10px ${activity.colorHex}`,
               }}
             />
             <span className="font-semibold text-white truncate">{activeBucket.subLabel}</span>
-            <span aria-hidden="true" className="text-zinc-700">·</span>
+            <span aria-hidden="true" className="text-zinc-600">·</span>
             <span className="font-mono font-bold tabular-nums" style={{ color: activity.colorHex }}>
               {formatMinutesHm(activeBucket.minutes)}
             </span>
             {activeBucket.targetMinutes > 0 && (
               <>
-                <span aria-hidden="true" className="text-zinc-700">·</span>
-                <span className="font-mono text-zinc-400 tabular-nums">
+                <span aria-hidden="true" className="text-zinc-600">·</span>
+                <span className="font-mono text-zinc-200 tabular-nums">
                   {activeBucket.pctOfTarget}% of {formatMinutesHm(activeBucket.targetMinutes)}
                 </span>
               </>
@@ -223,7 +231,7 @@ export const ActivityProgressChart: React.FC<ActivityProgressChartProps> = ({
           <div className="flex flex-wrap items-center gap-3">
             {/* Step-to-step or Yesterday Growth / Degrowth */}
             <div className="flex items-center gap-1.5 text-[11px] font-mono">
-              <span className="text-zinc-500">vs Yesterday:</span>
+              <span className="text-zinc-300">vs Yesterday:</span>
               <GrowthDeltaInline
                 direction={yesterdayComparison.direction}
                 pctChange={yesterdayComparison.pctChange}
@@ -1245,6 +1253,7 @@ export const ActivityProgressChart: React.FC<ActivityProgressChartProps> = ({
           </div>
         </div>
       )}
+
     </div>
   );
 };

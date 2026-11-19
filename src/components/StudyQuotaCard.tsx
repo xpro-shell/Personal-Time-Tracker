@@ -78,7 +78,6 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
 
   // Manual past-study state
   const [showManualModal, setShowManualModal] = useState(false);
-  const [manualType, setManualType] = useState<'study' | 'content'>('study');
   const [manualTopic, setManualTopic] = useState('Deep Work');
   const [manualDate, setManualDate] = useState<string>(() => selectedDate || new Date().toISOString().slice(0, 10));
   const [manualDurationMins, setManualDurationMins] = useState<number>(60);
@@ -143,8 +142,8 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
 
     playEarnedChime();
     onLogPastStudy({
-      type: manualType,
-      topic: manualTopic.trim() || (manualType === 'content' ? 'Content Creation' : 'General Study'),
+      type: 'study',
+      topic: manualTopic.trim() || 'General Study',
       startTimeIso: startDate.toISOString(),
       endTimeIso: endDate.toISOString(),
       durationMinutes: safeMins,
@@ -214,8 +213,8 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
                     ? 'h-7 px-2.5 bg-emerald-400 text-zinc-950 border-emerald-300 font-bold'
                     : 'h-7 px-2 hover:px-2.5 bg-emerald-500/15 border-emerald-500/35 text-emerald-200 hover:border-emerald-400 hover:text-white'
                 }`}
-                title="Forgot to start timer? Log past Study or Content session anytime"
-                aria-label="Log past Study or Content session"
+                title="Forgot to start timer? Log past study session anytime"
+                aria-label="Log past study session"
               >
                 <Clock className="w-3.5 h-3.5 shrink-0" />
                 <span
@@ -280,12 +279,12 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
         )}
       </div>
 
-      {/* Expandable Manual Study / Content Retroactive Logger */}
+      {/* Expandable Manual Study Retroactive Logger */}
       {showManualModal && onLogPastStudy && (
-        <div className="p-3.5 bg-zinc-950/95 border border-emerald-500/35 rounded-xl space-y-3 text-xs font-mono animate-in fade-in duration-150 relative">
+        <div className="p-3.5 bg-zinc-950/95 border border-emerald-500/35 rounded-xl space-y-3 text-xs font-mono relative">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-emerald-200">
-              Log Missed Focus Session
+              Log Missed Study Session
             </span>
             <button
               type="button"
@@ -293,31 +292,6 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
               className="text-zinc-500 hover:text-zinc-300 cursor-pointer"
             >
               ✕
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-900 border border-zinc-800 rounded-lg">
-            <button
-              type="button"
-              onClick={() => setManualType('study')}
-              className={`py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors ${
-                manualType === 'study'
-                  ? 'bg-emerald-400 text-zinc-950'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              Study Focus
-            </button>
-            <button
-              type="button"
-              onClick={() => setManualType('content')}
-              className={`py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors ${
-                manualType === 'content'
-                  ? 'bg-violet-400 text-zinc-950'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              Content Creation
             </button>
           </div>
 
@@ -337,7 +311,7 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label className="block label-scandi text-zinc-500 mb-1">Start</label>
               <input
@@ -349,22 +323,7 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
                   setManualStart(v);
                   setManualEnd(addMinsToHHMM(v, manualDurationMins));
                 }}
-                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
-              />
-            </div>
-            <div>
-              <label className="block label-scandi text-zinc-500 mb-1">Minutes</label>
-              <input
-                type="number"
-                min={1}
-                max={960}
-                value={manualDurationMins}
-                onChange={(e) => {
-                  const val = Math.max(1, Math.min(960, parseInt(e.target.value, 10) || 15));
-                  setManualDurationMins(val);
-                  setManualEnd(addMinsToHHMM(manualStart, val));
-                }}
-                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
+                className="w-full px-2.5 py-1.5 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400"
               />
             </div>
             <div>
@@ -378,9 +337,25 @@ export const StudyQuotaCard: React.FC<StudyQuotaCardProps> = ({
                   setManualEnd(v);
                   setManualDurationMins(diffMinsBetweenHHMM(manualStart, v));
                 }}
-                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 font-semibold focus:outline-none focus:border-emerald-400"
+                className="w-full px-2.5 py-1.5 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 font-semibold focus:outline-none focus:border-emerald-400"
               />
             </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <label className="label-scandi text-zinc-500 shrink-0">Duration (Minutes)</label>
+            <input
+              type="number"
+              min={1}
+              max={960}
+              value={manualDurationMins}
+              onChange={(e) => {
+                const val = Math.max(1, Math.min(960, parseInt(e.target.value, 10) || 15));
+                setManualDurationMins(val);
+                setManualEnd(addMinsToHHMM(manualStart, val));
+              }}
+              className="w-24 px-2.5 py-1 text-xs bg-zinc-900 border border-zinc-700 rounded text-zinc-100 focus:outline-none focus:border-emerald-400 text-right"
+            />
           </div>
 
           <div className="flex flex-wrap gap-1.5">

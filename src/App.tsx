@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AchievementNewsTicker } from './components/AchievementNewsTicker';
 import { AchievementsTab } from './components/AchievementsTab';
 import { BreakBankCard } from './components/BreakBankCard';
+import { CosmicObservatoryBackdrop } from './components/CosmicObservatoryBackdrop';
 import { CustomHabitsManager, DEFAULT_HABITS } from './components/CustomHabitsManager';
 import { DateNavigator } from './components/DateNavigator';
 import { DailyCompletionStatus, DayCloseModal } from './components/DayCloseModal';
@@ -262,7 +263,8 @@ export default function App() {
         saved === 'rose' ||
         saved === 'solar' ||
         saved === 'royal' ||
-        saved === 'synth'
+        saved === 'synth' ||
+        saved === 'cosmic'
       ) {
         return saved;
       }
@@ -277,6 +279,7 @@ export default function App() {
       const saved = localStorage.getItem('ptt_studio_text_style_v1');
       if (
         saved === 'auto' ||
+        saved === 'observatory' ||
         saved === 'minimal' ||
         saved === 'luxury' ||
         saved === 'aurora' ||
@@ -1948,27 +1951,31 @@ export default function App() {
       data-studio-font={effectiveStudioFont}
       className="min-h-screen studio-root-canvas text-zinc-100 flex flex-col font-sans selection:bg-emerald-500/25 selection:text-emerald-100 relative overflow-x-clip"
     >
-      {/* Fixed Ambient Studio Lighting Backdrop */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
-        <div
-          className="animate-studio-float absolute -top-40 left-[-10%] w-[520px] h-[520px] rounded-full blur-[120px] transition-colors duration-700"
-          style={{ background: 'radial-gradient(circle, var(--studio-orb-1), transparent 70%)' }}
-        />
-        <div
-          className="animate-studio-float absolute top-[35%] right-[-12%] w-[540px] h-[540px] rounded-full blur-[130px] transition-colors duration-700"
-          style={{
-            background: 'radial-gradient(circle, var(--studio-orb-2), transparent 70%)',
-            animationDelay: '-5s',
-          }}
-        />
-        <div
-          className="animate-studio-float absolute -bottom-36 left-[28%] w-[500px] h-[500px] rounded-full blur-[130px] transition-colors duration-700"
-          style={{
-            background: 'radial-gradient(circle, var(--studio-orb-3), transparent 70%)',
-            animationDelay: '-9s',
-          }}
-        />
-      </div>
+      {/* Fixed Ambient Studio Lighting Backdrop / Global Deep-Space Observatory */}
+      {studioTheme === 'cosmic' ? (
+        <CosmicObservatoryBackdrop />
+      ) : (
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+          <div
+            className="animate-studio-float absolute -top-40 left-[-10%] w-[520px] h-[520px] rounded-full blur-[120px] transition-colors duration-700"
+            style={{ background: 'radial-gradient(circle, var(--studio-orb-1), transparent 70%)' }}
+          />
+          <div
+            className="animate-studio-float absolute top-[35%] right-[-12%] w-[540px] h-[540px] rounded-full blur-[130px] transition-colors duration-700"
+            style={{
+              background: 'radial-gradient(circle, var(--studio-orb-2), transparent 70%)',
+              animationDelay: '-5s',
+            }}
+          />
+          <div
+            className="animate-studio-float absolute -bottom-36 left-[28%] w-[500px] h-[500px] rounded-full blur-[130px] transition-colors duration-700"
+            style={{
+              background: 'radial-gradient(circle, var(--studio-orb-3), transparent 70%)',
+              animationDelay: '-9s',
+            }}
+          />
+        </div>
+      )}
 
       {/* Minimalist Cinematic Intro Animation (Bundled with Robot Teacher Tutorial) */}
       <IntroAnimation
@@ -2027,7 +2034,7 @@ export default function App() {
         {currentTab === 'desk' && (
           <div className="space-y-10 sm:space-y-12">
             {/* Quick Step Navigation Strip + Interactive Studio Design & Personality Switcher */}
-            <div className="sticky top-[56px] lg:top-[58px] z-30 py-2.5 px-4 bg-[#101014]/90 backdrop-blur-md border border-zinc-800/80 rounded-xl flex items-center justify-between gap-3 text-xs shadow-xl shadow-black/50">
+            <div className="cosmic-surface sticky top-[56px] lg:top-[58px] z-30 py-2.5 px-4 bg-[#101014]/90 backdrop-blur-md border border-zinc-800/80 rounded-xl flex items-center justify-between gap-3 text-xs shadow-xl shadow-black/50 transition-colors duration-500">
               <div className="flex items-center gap-3 min-w-0 flex-1 overflow-x-auto scrollbar-none">
                 <span className="label-scandi text-emerald-400 shrink-0">
                   Desk Flow
@@ -2074,13 +2081,15 @@ export default function App() {
               />
             </div>
 
-            {/* Step 01: Desk Command Center & Active Elapsed Login Timer */}
+            {/* Step 01: Merged Cosmic Observatory Hero & Desk Command Center */}
             <section id="section-command" className="scroll-mt-28 space-y-3">
               <div className="flex items-center justify-between pb-2.5 border-b border-emerald-500/25">
                 <div className="flex items-baseline gap-2.5">
                   <span className="text-sm font-mono font-bold text-emerald-400">01.</span>
                   <h2 className="font-display text-2xl sm:text-[1.7rem] font-bold tracking-tight text-white">
-                    Desk Command &amp; Session Controls
+                    {studioTheme === 'cosmic'
+                      ? 'Observatory Command & Session Controls'
+                      : 'Desk Command & Session Controls'}
                   </h2>
                 </div>
                 <span className="label-scandi text-emerald-400/80 hidden sm:inline">Elapsed Login Monitor</span>
@@ -2104,6 +2113,11 @@ export default function App() {
                 onOpenDeskProgress={() => setProgressModalActivity('desk')}
                 lastLoggedEntry={lastLoggedEntry}
                 onUndoEntry={handleDeleteEntry}
+                isCosmicTheme={studioTheme === 'cosmic'}
+                pilotName={profile.displayName || 'Focus Pilot'}
+                level={profile.level || 1}
+                totalXp={profile.totalXp || 0}
+                currentStreak={profile.currentStreak || 1}
               />
             </section>
 
@@ -2252,6 +2266,7 @@ export default function App() {
                 vaultEntries={vaultEntries}
                 achievementsCount={achievements.length}
                 profile={profile}
+                isCosmicTheme={studioTheme === 'cosmic'}
               />
             </section>
           </div>
@@ -2273,6 +2288,7 @@ export default function App() {
             vaultEntries={vaultEntries}
             achievementsCount={achievements.length}
             profile={profile}
+            isCosmicTheme={studioTheme === 'cosmic'}
           />
         )}
 
@@ -2382,6 +2398,7 @@ export default function App() {
         onChangeTemplate={handleChangeProgressTemplate}
         onOpenFullSection={handleOpenFullProgressSection}
         activeDesk={activeDeskTelemetry}
+        isCosmicTheme={studioTheme === 'cosmic'}
       />
     </div>
   );

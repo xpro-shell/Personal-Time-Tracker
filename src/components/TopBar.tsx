@@ -42,7 +42,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-[#09090b]/95 backdrop-blur-md border-b border-zinc-800/80">
+    <header className="cosmic-topbar sticky top-0 z-40 bg-[#09090b]/95 backdrop-blur-md border-b border-zinc-800/80 transition-colors duration-500">
       <div className="flex items-center justify-between gap-3 lg:gap-6 px-4 sm:px-6 py-3">
         {/* Zone 1: Editorial Luxury Brand Wordmark */}
         <div className="flex items-center gap-2.5 shrink-0">

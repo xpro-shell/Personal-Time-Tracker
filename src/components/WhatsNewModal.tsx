@@ -9,6 +9,8 @@ import {
   Clock,
   Coffee,
   MoonStar,
+  Orbit,
+  Palette,
   ShieldCheck,
   Sparkles,
   TrendingUp,
@@ -18,8 +20,8 @@ import {
 import React, { useState } from 'react';
 import { playDeskClick, playEarnedChime } from '../lib/audioAlert';
 
-export const CURRENT_APP_VERSION = '2.5.4';
-export const RELEASE_CODENAME = 'Clean Personalized Studio Header';
+export const CURRENT_APP_VERSION = '2.6.0';
+export const RELEASE_CODENAME = 'COSMIC — Beyond Time';
 export const SEEN_VERSION_STORAGE_KEY = 'ptt_seen_app_version_v1';
 
 interface WhatsNewModalProps {
@@ -29,43 +31,60 @@ interface WhatsNewModalProps {
 
 const RELEASE_HIGHLIGHTS = [
   {
-    icon: Sparkles,
-    accent: 'text-cyan-400',
-    title: 'Clean Greeting, Motivation & Date Header',
+    icon: Orbit,
+    accent: 'text-violet-300',
+    title: 'COSMIC — Beyond Time in Studio Light',
     detail:
-      'Activity Progress Studio greets you by time of day using your local profile name (default: Focus Pilot), shows a short motivational line, and displays only the active date underneath.',
+      'Open Studio Light in the Desk Flow bar to preview and activate COSMIC — Beyond Time: a deep-space observatory backdrop with fine stars, violet-blue nebula clouds, distant galaxies, and 1-click switching back anytime.',
   },
   {
-    icon: CheckCircle2,
-    accent: 'text-emerald-400',
-    title: 'Streamlined Desk Flow (Section 07 Removed)',
+    icon: Sparkles,
+    accent: 'text-cyan-300',
+    title: '3D Black Hole Hero Observatory',
     detail:
-      'Removed Section 07 (Accountability & Focus Principles) from the Desk Flow view for a cleaner, distraction-free workspace.',
+      'Features a tranquil slow-rotating 3D black hole with gravitational lensing & accretion rings beside your welcome banner, live desk status indicator, and current clock.',
   },
   {
     icon: Clock,
-    accent: 'text-emerald-400',
-    title: 'Compact Clock Icon with Hover "Log" Label',
+    accent: 'text-indigo-300',
+    title: 'Observatory Orbital Timer & Cosmic Glass UI',
     detail:
-      'Study Quota, Break Bank, Restorative Sleep, and all Custom Habits show a clean Clock icon that expands to reveal "Log" on hover, with manual logging removed from Desk Command Center.',
-  },
-  {
-    icon: Activity,
-    accent: 'text-purple-400',
-    title: 'New "Studio Matrix" Progress Template',
-    detail:
-      'Added the Studio Matrix layout inside Progress & Graphs featuring top KPI cards, a colored multi-activity consistency matrix, detailed bars, and live insights styled from your software colors and local habits.',
+      'Active Study and Break timers gain an orbital ring around crisp tabular countdown digits, paired with translucent observatory glass panels across every tab.',
   },
   {
     icon: ShieldCheck,
     accent: 'text-teal-400',
-    title: 'Zero-Data-Loss Updates',
+    title: 'All Calculations & Logs Preserved',
     detail:
-      'All existing logs, carried balances, Vault hours, custom habits, and active timers stay completely intact.',
+      'Study/break quotas, carry-forward logic, midnight rollover, active sessions, notes, and local storage records remain completely untouched.',
   },
 ];
 
 const EARLIER_RELEASES = [
+  {
+    version: 'v2.5.5 · Event Horizon Cosmos & Luminous Studio',
+    items: [
+      {
+        icon: Orbit,
+        accent: 'text-cyan-300',
+        title: 'Event Horizon (Universe) Chart Template',
+        detail:
+          'Animated Black Hole, orbital accretion rings, and starfield depth inside Progress & Graphs.',
+      },
+    ],
+  },
+  {
+    version: 'v2.5.2 – v2.5.4 · Studio Matrix, Clock Log & Header Polish',
+    items: [
+      {
+        icon: Palette,
+        accent: 'text-purple-400',
+        title: 'Studio Matrix Template & Greeting Header',
+        detail:
+          'Added multi-activity consistency matrix, time-of-day greeting, Clock icons revealing "Log" on hover, and streamlined Desk Flow layout.',
+      },
+    ],
+  },
   {
     version: 'v2.5.1 · Retroactive Study, Break & Habit Logging',
     items: [

@@ -1,9 +1,10 @@
 export type EntryType = 'study' | 'break' | 'music' | 'content' | 'day_boundary' | 'sleep' | 'habit' | 'life' | 'desk';
 export type ActionType = 'start' | 'stop' | 'tick';
 export type EntrySource = 'manual' | 'shortcode' | 'review_queue' | 'hourly_checkin' | 'whatsapp';
-export type StudioThemeId = 'emerald' | 'gold' | 'violet' | 'cyan' | 'rose' | 'solar' | 'royal' | 'synth';
+export type StudioThemeId = 'emerald' | 'gold' | 'violet' | 'cyan' | 'rose' | 'solar' | 'royal' | 'synth' | 'cosmic';
 export type StudioTextStyleId =
   | 'auto'
+  | 'observatory'
   | 'minimal'
   | 'luxury'
   | 'aurora'

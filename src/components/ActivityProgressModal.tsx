@@ -24,6 +24,7 @@ interface ActivityProgressModalProps {
   onChangeTemplate: (tpl: ProgressTemplateId) => void;
   onOpenFullSection: (activityFilter: ActivityFilterId) => void;
   activeDesk?: ActiveDeskTelemetry;
+  isCosmicTheme?: boolean;
 }
 
 const MODAL_TIMEFRAMES: Array<{ id: ProgressTimeframe; label: string }> = [
@@ -44,6 +45,7 @@ export const ActivityProgressModal: React.FC<ActivityProgressModalProps> = ({
   onChangeTemplate,
   onOpenFullSection,
   activeDesk,
+  isCosmicTheme = false,
 }) => {
   const [timeframe, setTimeframe] = useState<ProgressTimeframe>('week');
   const [selectedBucketKey, setSelectedBucketKey] = useState<string | null>(null);
@@ -209,6 +211,7 @@ export const ActivityProgressModal: React.FC<ActivityProgressModalProps> = ({
             series={series}
             timeframe={timeframe}
             template={template}
+            isCosmicTheme={isCosmicTheme}
             selectedBucketKey={selectedBucketKey}
             onSelectBucket={(b) => setSelectedBucketKey(b.key)}
             onChangeTimeframe={(tf) => {
